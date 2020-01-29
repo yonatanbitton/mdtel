@@ -1,0 +1,24 @@
+__pycahe__/
+*.pyc
+/static/ammap/*
+
+# XML
+**/.idea/workspace.xml
+**/.idea
+**/.idea/misc.xml
+*./xml
+.idea/
+.idea
+*.idea
+*./.idea
+
+.ipynb_checkpoints
+ipynb_checkpoints
+
+__pycache__
+
+.ipynb_checkpoints
+
+*.bin
+
+
