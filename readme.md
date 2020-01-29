@@ -1,13 +1,13 @@
-# MDTEL - Medical-Deep-
+# MDTEL - Medical-Deep-Transliteration-Entity-Linking
 
 This repository contains the code for the paper "Cross-Lingual UMLS Entity Linking in Online Health Communities" 
 
 As described in the paper, there are 3 main steps: 
 
-1. Transliteration: A forward transliteration model that we train and use to transliterate the UMLS into Hebrew.
-2. High Recall Matcher: A matcher to match spans from the post to the transliterated UMLS, producing a high recall list of candidate
+1. **Transliteration**: A forward transliteration model that we train and use to transliterate the UMLS into Hebrew.
+2. **High Recall Matcher**: A matcher to match spans from the post to the transliterated UMLS, producing a high recall list of candidate
 matches.
-3. Contextual Relevance: A contextual relevance model that filters the high recall list by detecting matches that are not used in a medical
+3. **Contextual Relevance**: A contextual relevance model that filters the high recall list by detecting matches that are not used in a medical
 sense and produces a smaller, more relevant list. 
 
 Here is a link to the data directory: pass
