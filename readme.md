@@ -10,10 +10,12 @@ matches.
 3. **Contextual Relevance**: A contextual relevance model that filters the high recall list by detecting matches that are not used in a medical
 sense and produces a smaller, more relevant list. 
 
-Here is a link to the data directory: pass
+Here is a link to the data directory: https://drive.google.com/drive/u/0/folders/1lpYdt58TThGwHHxFHFnK1tboxuGU1fPY  
 When referring to "data", it means the data folder where ever you choose to place it (At this code it's 'E:\mdtel_data\data')
 
 We now describe steps to reproduce each one of the steps.
+
+All the forum data is publicly available at www.camoni.co.il
 
 ## Transliteration
 

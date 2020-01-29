@@ -12,6 +12,7 @@ output_models_dir = r'E:\mdtel_data\data\contextual_relevance\output_models'
 def evaluate_community(community):
     community_df = pd.read_csv(training_dataset_dir + os.sep + community + "_debug.csv")
     selected_feats = ['match_freq', 'pred_3_window', 'pred_6_window', 'relatedness']
+
     best_joint_score = 0
     best_experiment_data = None
     n_estimators = 50
