@@ -13,6 +13,8 @@ sense and produces a smaller, more relevant list.
 Here is a link to the data directory: https://drive.google.com/drive/u/0/folders/1lpYdt58TThGwHHxFHFnK1tboxuGU1fPY  
 When referring to "data", it means the data folder where ever you choose to place it (At this code it's 'E:\mdtel_data\data')
 
+The manual labeled medical terms are at dir 'data\manual_labeled'
+
 We now describe steps to reproduce each one of the steps.
 
 All the forum data is publicly available at www.camoni.co.il
