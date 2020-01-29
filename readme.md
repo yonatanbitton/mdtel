@@ -11,7 +11,7 @@ matches.
 sense and produces a smaller, more relevant list. 
 
 Here is a link to the data directory: pass
-When referring to "data", it means the data folder where ever you choose to place it. 
+When referring to "data", it means the data folder where ever you choose to place it (At this code it's 'E:\mdtel_data\data')
 
 We now describe steps to reproduce each one of the steps.
 
