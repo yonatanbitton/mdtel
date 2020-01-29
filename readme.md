@@ -40,16 +40,16 @@ This step includes several parts:
 2. Language model: ULMFiT and n-gram model
 3. Match count and match frequency
 
-After preparing all of the feature parts, the code to run will include two files:
-1. "src\contextual_relevance\extract_features_for_ml_model.py'
-This file takes as input the feature outputs from all of relatedness, language model, and match stats outputs, 
-and prepare a training dataset for machine learning contextual relevance model.  
+After preparing all of the feature parts, we will have combined dataset with those features,
+that can be used in order to evaluate the contextual relevance model.
+
+This is how to produce each one of the features: 
 
 ### Language models
 The data for this part is at: http://u.cs.biu.ac.il/~yogo/hebwiki/
 
 Training two language model.
-First language model: Simple n-gram model. The code for this part is here: https://metacpan.org/pod/UMLS::Similarity
+First language model: Simple n-gram model. The code for this part is here: https://nlpforhackers.io/language-models/
 
 The second language model is based on fastai language model. 
 
@@ -104,3 +104,5 @@ The relatedness output for our 3 communities is at "data\contextual_relevance\re
 
 ### Match count and match frequency
 
+The file is at "src\contextual_relevance\extract_dataset_with_feats". 
+This file simply prepares a Counter over the wikipedia data, and produces match count and match frequency for each match. 

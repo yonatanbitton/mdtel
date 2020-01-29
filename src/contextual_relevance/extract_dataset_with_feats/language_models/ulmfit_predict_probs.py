@@ -6,7 +6,13 @@ from fastai import *
 from fastai.text import *
 
 input_dir = r'E:\mdtel_data\data\contextual_relevance'
-output_dir = r'E:\mdtel_data\data\contextual_relevance\language_models\output'
+posts_dir = r'E:\mdtel_data\data\contextual_relevance\posts'
+output_dir = r'E:\mdtel_data\data\contextual_relevance\language_models\ulmfit_output'
+
+DEBUG = True
+
+if DEBUG:
+    print(f"*** DEBUG MODE: Taking 100 rows only ***")
 
 def predict_row(row, loaded_learn):
     match = row['match']
@@ -79,7 +85,10 @@ class WindowsMaker:
 
 def handle_community(community, loaded_learn=None):
     print(f"community: {community}")
-    df = pd.read_excel(input_dir + os.sep + community + ".xlsx")
+    df = pd.read_excel(posts_dir + os.sep + community + ".xlsx")
+
+    if DEBUG:
+        df = df.head(100)
 
     windows_maker = WindowsMaker()
     df = windows_maker.go(df)
