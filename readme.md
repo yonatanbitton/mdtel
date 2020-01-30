@@ -15,7 +15,8 @@ When referring to "data", it means the data folder where ever you choose to plac
 
 The manual labeled medical terms are at dir 'data\manual_labeled'
 
-We now describe steps to reproduce each one of the steps.
+We now describe steps to reproduce each one of the steps. The data path is provided in the top of each python file, 
+and available at the data directory.
 
 All the forum data is publicly available at www.camoni.co.il
 
@@ -50,7 +51,8 @@ that can be used in order to evaluate the contextual relevance model.
 This is how to produce each one of the features: 
 
 ### Language models
-The data for this part is at: http://u.cs.biu.ac.il/~yogo/hebwiki/
+
+The data for this part is available at the data directory, and is originally from: http://u.cs.biu.ac.il/~yogo/hebwiki/
 
 Training two language model.
 First language model: Simple n-gram model. The code for this part is here: https://nlpforhackers.io/language-models/
