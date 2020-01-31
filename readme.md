@@ -16,7 +16,7 @@ Here is a link to the data directory: https://drive.google.com/drive/u/0/folders
 
 ![image](rebif_example_smaller.png)
 
-## Setup  
+## Setup   
 
 Download the data directory with this terminal cmd: `pass`  
 Use the `requirements.txt` file in order to install the dependencies. 
@@ -28,8 +28,6 @@ if DEBUG flag is set, the code will work on 100 instances only.
 The manual labeled medical terms are at dir `data\manual_labeled`
 
 We now describe steps to reproduce each one of the steps.  
-
-
 
 ## Transliteration
 
