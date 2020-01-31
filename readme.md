@@ -30,6 +30,8 @@ if DEBUG flag is set, the code will work on 100 instances only.
 
 The manual labeled medical terms are at dir `data\manual_labeled`
 
+The notebook `reproduce_paper_tables.ipynb` provides steps to reproduce the results table that were reported in the paper.  
+
 We now describe steps to reproduce each one of the steps.  
 
 ## Transliteration
