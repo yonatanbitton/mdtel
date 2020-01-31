@@ -26,9 +26,7 @@ import csv
 import re, string
 import os
 # print(os.getcwd().split("\\")[-1])
-if (os.getcwd() != r"C:\Users\PC-1\PycharmProjects\OHCsProject\common"):
-    os.chdir(r"C:\Users\PC-1\PycharmProjects\OHCsProject\common")
-    print(os.getcwd())
+
 from enums import *
 # from hebtokenizer_yap import HebTokenizer
 from hebtokenizer_yap import HebTokenizer

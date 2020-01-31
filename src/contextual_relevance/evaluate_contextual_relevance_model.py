@@ -6,8 +6,10 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score, roc_auc_score, accuracy_score
 from sklearn.model_selection import train_test_split
 
-training_dataset_dir = r'E:\mdtel_data\data\contextual_relevance\training_dataset'
-output_models_dir = r'E:\mdtel_data\data\contextual_relevance\output_models'
+from config import data_dir
+
+training_dataset_dir = data_dir + r"data\contextual_relevance\training_dataset"
+output_models_dir = data_dir + r"contextual_relevance\output_models"
 
 def evaluate_community(community):
     community_df = pd.read_csv(training_dataset_dir + os.sep + community + "_debug.csv")

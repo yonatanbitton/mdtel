@@ -9,10 +9,12 @@ from simstring.feature_extractor.character_ngram import CharacterNgramFeatureExt
 from simstring.measure.cosine import CosineMeasure
 from simstring.searcher import Searcher
 
-stopword_path = r"E:\mdtel_data\data\high_recall_matcher\heb_stop_words.txt"
-yap_processed_dir = r"E:\mdtel_data\data\high_recall_matcher\posts\yap_processed"
-umls_df_data_path = r"E:\mdtel_data\data\high_recall_matcher\HEB_TO_ENG_MRCONSO_RELATEDNESS.csv"
-output_dir = r"E:\mdtel_data\data\high_recall_matcher\output"
+from config import data_dir
+
+stopword_path = data_dir + r"high_recall_matcher\heb_stop_words.txt"
+yap_processed_dir = data_dir + r"high_recall_matcher\posts\yap_processed"
+umls_df_data_path = data_dir + r"high_recall_matcher\HEB_TO_ENG_MRCONSO_RELATEDNESS.csv"
+output_dir = data_dir + r"high_recall_matcher\output"
 
 SINGLE_WORD_SIMILARITY_THRESHOLD = 0.92
 MULTI_WORD_SIMILARITY_THRESHOLD = 0.92

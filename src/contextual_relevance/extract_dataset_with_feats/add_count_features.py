@@ -2,12 +2,12 @@ import os
 import pandas as pd
 from collections import Counter
 
-wiki_data_dir = r"E:\mdtel_data\data\contextual_relevance\wiki_data.txt"
+from config import data_dir, DEBUG
 
-input_dir = r'E:\mdtel_data\data\contextual_relevance\posts\matches'
-output_dir = r'E:\mdtel_data\data\contextual_relevance\count_features'
+wiki_data_dir = data_dir + r"contextual_relevance\wiki_data.txt"
 
-DEBUG = True
+input_dir = data_dir + r"contextual_relevance\posts\matches"
+output_dir = data_dir + r"contextual_relevance\count_features"
 
 if DEBUG:
     print(f"*** DEBUG MODE: Taking 100 rows only ***")

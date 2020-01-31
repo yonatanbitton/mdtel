@@ -1,15 +1,12 @@
 import difflib
-import pandas as pd
-import os
-import random
-from fastai import *
+
 from fastai.text import *
 
-input_dir = r'E:\mdtel_data\data\contextual_relevance'
-posts_dir = r'E:\mdtel_data\data\contextual_relevance\posts'
-output_dir = r'E:\mdtel_data\data\contextual_relevance\language_models\ulmfit_output'
+from config import data_dir, DEBUG
 
-DEBUG = True
+input_dir = data_dir + r"contextual_relevance"
+posts_dir = data_dir + r"contextual_relevance\posts"
+output_dir = data_dir + r"contextual_relevance\language_models\ulmfit_output"
 
 if DEBUG:
     print(f"*** DEBUG MODE: Taking 100 rows only ***")
