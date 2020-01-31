@@ -90,6 +90,8 @@ Run the code `ulmfit_predict_probs.py` in order to use the trained language mode
 probabilities of words in contexts for our dataset.  
 `python src\contextual_relevance\extract_dataset_with_feats\language_models\ulmfit_predict_probs.py`  
 
+* If an error rises while loading the language model, try to downgrade to pytorch=1.1.0
+
 At inference step we added a function to fastai's `learner.py`, 
 LanguageLearner class:
 ```python

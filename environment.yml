@@ -31,5 +31,8 @@ dependencies:
   - vs2015_runtime=14.16.27012=hf0eaf9b_1
   - wheel=0.34.1=py38_0
   - wincertstore=0.2=py38_0
-prefix: C:\Users\PC-1\.conda\envs\mdtel_env
+  - pip:
+    - simstring-pure==1.0.0
+    - sklearn==0.0
+    - fastai==1.0.58
 
