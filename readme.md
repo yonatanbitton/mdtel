@@ -10,7 +10,9 @@ matches.
 3. **Contextual Relevance**: A contextual relevance model that filters the high recall list by detecting matches that are not used in a medical
 sense and produces a smaller, more relevant list. 
 
-Here is a link to the data directory: https://drive.google.com/drive/u/0/folders/1lpYdt58TThGwHHxFHFnK1tboxuGU1fPY
+Here is a link to the data directory: https://drive.google.com/file/d/17JTxutH15P3R-Wd4x3d5ulY22KW0vVUC/view?usp=sharing  
+You can simply open in on browser an download the zip file, but if you want it's possible to perform the following cmd on linux:
+`python download_gdrive.py 17JTxutH15P3R-Wd4x3d5ulY22KW0vVUC [target-path]`
 
 **All the forum data is publicly available at www.camoni.co.il**
 
