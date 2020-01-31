@@ -11,8 +11,6 @@ matches.
 sense and produces a smaller, more relevant list. 
 
 Here is a link to the data directory: https://drive.google.com/file/d/17JTxutH15P3R-Wd4x3d5ulY22KW0vVUC/view?usp=sharing  
-You can simply open in on browser an download the zip file, but if you want it's possible to perform the following cmd on linux:
-`python download_gdrive.py 17JTxutH15P3R-Wd4x3d5ulY22KW0vVUC [target-path]`
 
 **All the forum data is publicly available at www.camoni.co.il**
 
@@ -20,7 +18,10 @@ You can simply open in on browser an download the zip file, but if you want it's
 
 ## Setup   
 
-Download the data directory with this terminal cmd: `pass`  
+First, download the data directory.  
+You can simply open in on browser an download the zip file, but if you want it's possible to perform the following cmd on linux:
+`python download_gdrive.py 17JTxutH15P3R-Wd4x3d5ulY22KW0vVUC [target-path]`
+  
 Use the `requirements.txt` file in order to install the dependencies. 
 
 Config file - `config.py`. Includes a data_path, and DEBUG flag.  
