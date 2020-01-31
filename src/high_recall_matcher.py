@@ -29,8 +29,6 @@ with open(stopword_path, encoding='utf-8') as f:
 
 NUMBER_OF_GRAMS = 3
 
-DEBUG = True
-
 STRING_COLUMN = 'STR'
 
 if DEBUG:
