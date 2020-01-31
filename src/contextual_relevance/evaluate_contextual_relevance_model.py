@@ -8,6 +8,8 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import f1_score, recall_score, roc_auc_score, accuracy_score, confusion_matrix
 from sklearn.model_selection import train_test_split
 
+module_path = os.path.abspath(os.path.join('..', '..', os.getcwd()))
+sys.path.append(module_path)
 
 def evaluate_community(community):
     community_df = pd.read_csv(training_dataset_dir + os.sep + community + "_debug.csv")

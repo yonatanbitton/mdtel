@@ -1,0 +1,35 @@
+name: mdtel_env
+channels:
+  - pytorch
+  - anaconda
+  - defaults
+dependencies:
+  - blas=1.0=mkl
+  - ca-certificates=2020.1.1=0
+  - certifi=2019.11.28=py38_0
+  - cudatoolkit=10.1.243=h74a9793_0
+  - icc_rt=2019.0.0=h0cc432a_1
+  - intel-openmp=2019.5=281
+  - mkl=2019.5=281
+  - mkl-service=2.3.0=py38hb782905_0
+  - mkl_fft=1.0.15=py38h14836fe_0
+  - mkl_random=1.1.0=py38hf9181ef_0
+  - ninja=1.9.0=py38h74a9793_0
+  - numpy=1.18.1=py38h93ca92e_0
+  - numpy-base=1.18.1=py38hc3f5095_1
+  - openssl=1.1.1=he774522_0
+  - pandas=1.0.0=py38h47e9c7a_0
+  - pip=20.0.2=py38_1
+  - python=3.8.1=h5fd99cc_1
+  - python-dateutil=2.8.1=py_0
+  - pytorch=1.4.0=py3.8_cuda101_cudnn7_0
+  - pytz=2019.3=py_0
+  - setuptools=45.1.0=py38_0
+  - six=1.14.0=py38_0
+  - sqlite=3.30.1=he774522_0
+  - vc=14.1=h0510ff6_4
+  - vs2015_runtime=14.16.27012=hf0eaf9b_1
+  - wheel=0.34.1=py38_0
+  - wincertstore=0.2=py38_0
+prefix: C:\Users\PC-1\.conda\envs\mdtel_env
+

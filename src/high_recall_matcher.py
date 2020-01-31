@@ -8,6 +8,9 @@ from simstring.database.dict import DictDatabase
 from simstring.feature_extractor.character_ngram import CharacterNgramFeatureExtractor
 from simstring.measure.cosine import CosineMeasure
 from simstring.searcher import Searcher
+import sys
+module_path = os.path.abspath(os.path.join('..', os.getcwd()))
+sys.path.append(module_path)
 
 from config import data_dir
 

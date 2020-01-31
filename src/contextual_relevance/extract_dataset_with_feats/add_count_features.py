@@ -1,6 +1,10 @@
 import os
 import pandas as pd
 from collections import Counter
+import sys
+
+module_path = os.path.abspath(os.path.join('..', '..', '..', os.getcwd()))
+sys.path.append(module_path)
 
 from config import data_dir, DEBUG
 

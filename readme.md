@@ -22,7 +22,11 @@ First, download the data directory.
 You can simply open in on browser an download the zip file, but if you want it's possible to perform the following cmd on linux:
 `python download_gdrive.py 17JTxutH15P3R-Wd4x3d5ulY22KW0vVUC [target-path]`
   
-Use the `requirements.txt` file in order to install the dependencies. 
+Use the `envorinment.yml` file in order to create conda env with the necessary dependencies.  
+```
+conda env create -f environment.yml
+conda activate mdtel_env
+``` 
 
 Config file - `config.py`. Includes a data_path, and DEBUG flag.  
 please change the current data path (`data_dir = r"E:\mdtel_data\data" + os.sep`) to your data directory.  
@@ -84,7 +88,7 @@ The second language model is based on fastai language model.
 [Optional]
 Run the code `ulmfit_predict_probs.py` in order to use the trained language model in order to get features of 
 probabilities of words in contexts for our dataset.  
-`python src\contextual_relevance\language_models\ulmfit_predict_probs.py`  
+`python src\contextual_relevance\extract_dataset_with_feats\language_models\ulmfit_predict_probs.py`  
 
 At inference step we added a function to fastai's `learner.py`, 
 LanguageLearner class:
@@ -102,7 +106,6 @@ def get_prob_of_word_in_context(self, context: str, word: str):
 This function returns the probability of a word given context. 
 For example we expect P(Red | This car is) > P(Frog | This car is) (P = get_prob_of_word_in_context)
 
-The file `src\contextual_relevance\language_models\ulmfit_predict_probs.py` uses the trained model in order 
 
 ### Relatedness
 The software that is needed in order to use this part:
@@ -130,6 +133,6 @@ The relatedness output for our 3 communities is at "data\contextual_relevance\re
 ### Match count and match frequency
 
 Run the code `add_count_features.py`.    
-`python src\contextual_relevance\add_count_features.py`  
+`python src\contextual_relevance\extract_dataset_with_feats\add_count_features.py`  
  
 This file simply prepares a Counter over the wikipedia data, and produces match count and match frequency for each match. 

@@ -1,6 +1,10 @@
 import difflib
 
 from fastai.text import *
+import sys
+
+module_path = os.path.abspath(os.path.join('..', '..', '..', '..', os.getcwd()))
+sys.path.append(module_path)
 
 from config import data_dir, DEBUG
 
