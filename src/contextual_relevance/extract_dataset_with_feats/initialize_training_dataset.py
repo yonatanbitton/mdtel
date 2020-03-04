@@ -1,6 +1,7 @@
 import difflib
-
-from fastai.text import *
+import os
+import pandas as pd
+import json
 import sys
 
 module_path = os.path.abspath(os.path.join('..', '..', '..', '..', os.getcwd()))
@@ -8,25 +9,11 @@ sys.path.append(module_path)
 
 from config import data_dir, DEBUG
 
-input_dir = data_dir + r"contextual_relevance"
-posts_dir = data_dir + r"contextual_relevance\posts"
-output_dir = data_dir + r"contextual_relevance\language_models\ulmfit_output"
+input_dir = data_dir + r"contextual_relevance\posts"
+output_dir = data_dir + r"contextual_relevance\initialized_training_dataset"
 
 if DEBUG:
     print(f"*** DEBUG MODE: Taking 100 rows only ***")
-
-def predict_row(row, loaded_learn):
-    match = row['match']
-    match_10_window = row['match_10_window']
-    match_6_window = row['match_6_window']
-    match_3_window = row['match_3_window']
-
-    p_10_window = loaded_learn.get_prob_of_word_in_context(match_10_window, match).item()
-    p_6_window = loaded_learn.get_prob_of_word_in_context(match_6_window, match).item()
-    p_3_window = loaded_learn.get_prob_of_word_in_context(match_3_window, match).item()
-
-    return p_10_window, p_6_window, p_3_window
-
 
 class WindowsMaker:
     def __init__(self):
@@ -67,7 +54,7 @@ class WindowsMaker:
             matches_found = row['matches_found']
             matches_words = [match[0].split('-')[0] for match in matches_found]
 
-            for match in matches_words:
+            for match_idx, match in enumerate(matches_words):
                 # get the matches indexes in text
                 match_indexes = self.get_matches(match, txt_words)
 
@@ -75,7 +62,7 @@ class WindowsMaker:
                 for idx in match_indexes:
                     match_3_window, match_6_window, match_10_window = self.get_windows_for_match(txt_words, idx)
 
-                    match_data = {'match': txt_words[idx], 'match_3_window': match_3_window,
+                    match_data = {'match': txt_words[idx], 'row_idx': row_idx, 'match_idx': match_idx, 'tokenized_txt': row['tokenized_txt'], 'match_3_window': match_3_window,
                                   'match_6_window': match_6_window,
                                   'match_10_window': match_10_window}
                     train_instances.append(match_data)
@@ -84,49 +71,24 @@ class WindowsMaker:
         print(df.head(3))
         return df
 
-def handle_community(community, loaded_learn=None):
+def handle_community(community):
     print(f"community: {community}")
-    df = pd.read_excel(posts_dir + os.sep + community + ".xlsx")
+    df = pd.read_excel(input_dir + os.sep + community + ".xlsx")
 
     if DEBUG:
         df = df.head(100)
 
     windows_maker = WindowsMaker()
     df = windows_maker.go(df)
-    print("Going to pred")
-    preds_10_window = []
-    preds_6_window = []
-    preds_3_window = []
-    for row_idx, row in df.iterrows():
-        if row_idx % 10 == 0:
-            print(f"row_idx: {row_idx}, df len: {len(df)}")
-        p_10_window, p_6_window, p_3_window = predict_row(row, loaded_learn)
-        preds_10_window.append(p_10_window)
-        preds_6_window.append(p_6_window)
-        preds_3_window.append(p_3_window)
 
-    df['pred_10_window'] = preds_10_window
-    df['pred_6_window'] = preds_6_window
-    df['pred_3_window'] = preds_3_window
-    cols = list(df.columns)
-    print(f"cols: {cols}, {len(cols)}")
-    fpath = output_dir + os.sep + community + '_output.csv'
+    fpath = output_dir + os.sep + community + '.xlsx'
     print(f"Writing file at shape: {df.shape} to fpath: {fpath}")
-    df.to_csv(fpath, index=False)
+    df.to_excel(fpath, index=False)
 
 
-def get_lm():
-    loaded_learn = load_learner(input_dir + os.sep + "language_models", 'ulmfit_lm.pickle')
-    TEXT = "במהלך השנה 1948 קמה מדינת ישראל"
-    N_WORDS = 40
-    N_SENTENCES = 1
-    print("\n".join(loaded_learn.predict(TEXT, N_WORDS, temperature=0.9) for _ in range(N_SENTENCES)))
-    return loaded_learn
+if __name__ == '__main__':
+    handle_community('diabetes')
+    handle_community('sclerosis')
+    handle_community('depression')
 
-
-loaded_learn = get_lm()
-handle_community('diabetes', loaded_learn)
-handle_community('sclerosis', loaded_learn)
-handle_community('depression', loaded_learn)
-
-print("Done")
+    print("Done")

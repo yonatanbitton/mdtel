@@ -12,7 +12,7 @@ import sys
 module_path = os.path.abspath(os.path.join('..', os.getcwd()))
 sys.path.append(module_path)
 
-from config import data_dir
+from config import *
 
 stopword_path = data_dir + r"high_recall_matcher\heb_stop_words.txt"
 yap_processed_dir = data_dir + r"high_recall_matcher\posts\yap_processed"

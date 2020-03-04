@@ -12,7 +12,8 @@ module_path = os.path.abspath(os.path.join('..', '..', os.getcwd()))
 sys.path.append(module_path)
 
 def evaluate_community(community):
-    community_df = pd.read_csv(training_dataset_dir + os.sep + community + "_debug.csv")
+    # community_df = pd.read_csv(training_dataset_dir + os.sep + community + "_debug.csv")
+    community_df = pd.read_excel(training_dataset_dir + os.sep + community + ".xlsx")
     selected_feats = ['match_freq', 'pred_3_window', 'pred_6_window', 'relatedness']
 
     best_joint_score = 0
@@ -26,6 +27,7 @@ def evaluate_community(community):
         if score > best_joint_score:
             best_joint_score = score
             best_experiment_data = experiment_data
+    # print(best_experiment_data['confusion_matrix'])
     return best_experiment_data
 
 
@@ -74,7 +76,9 @@ if __name__ == '__main__':
     else:
         from config import data_dir
 
-    training_dataset_dir = data_dir + r"contextual_relevance\training_dataset"
+    # training_dataset_dir = data_dir + r"contextual_relevance\training_dataset"
+
+    training_dataset_dir = data_dir + r"contextual_relevance\training_dataset_with_labels"
     output_models_dir = data_dir + r"contextual_relevance\output_models"
 
     main()

@@ -17,20 +17,15 @@
 ##    You should have received a copy of the GNU General Public License
 ##    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import pandas as pd
-import numpy as np
-import requests
+import re
 import sys
 import traceback
-import csv
-import re, string
-import os
-# print(os.getcwd().split("\\")[-1])
 
-from enums import *
-# from hebtokenizer_yap import HebTokenizer
-from hebtokenizer_yap import HebTokenizer
+import pandas as pd
+import requests
 
+from contextual_relevance.extract_dataset_with_feats.yap.enums import yap_ent, yap_cols
+from contextual_relevance.extract_dataset_with_feats.yap.hebtokenizer_yap import HebTokenizer
 
 
 class YapApi(object):
