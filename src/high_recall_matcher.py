@@ -111,6 +111,8 @@ def prepare_msg_ngrams(msg_txt):
         last_gram = ngrams[-1]
         extra_gram = last_gram[1], last_gram[2], 'PAD'
         ngrams.append(extra_gram)
+        extra_gram_2 = last_gram[2], 'PAD', 'PAD'
+        ngrams.append(extra_gram_2)
     return ngrams
 
 

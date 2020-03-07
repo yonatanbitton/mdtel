@@ -1,0 +1,64 @@
+OPTION 1 - No KB
+graph TD
+	A[Online Health Community] -->|Forum Post| B(High Recall Matcher)
+  B[High Recall Matcher] -->|Medical term with CUI and STR| D{Contextual Relevance Model}
+	D -->|Language Model| E[Laptop]
+	D -->|UMLS Relatedness| E[iPhone]
+	D -->|Additional Features| E[Relevant Medical Terms]
+
+OPTION 2 - Basic KB
+graph TD
+	A[Online Health Community]
+  B(High Recall Matcher)
+  KB[(UMLS MRCONSO)]
+  C{Contextual Relevance Model}
+  D[Relevant Medical Terms]
+  A -->|Forum Post| B
+  KB-- Finding matches in the UMLS, receiving CUI and STR ---B
+  B -->|Medical term with CUI and STR| C
+  C -->|Language Model| D
+	C -->|UMLS Relatedness| D
+	C -->|Additional Features| D
+
+
+OPTION 3
+graph TD
+	A(Online Health Community)
+  B(High Recall Matcher)
+  C(Contextual Relevance Mode)
+  D(Relevant Medical Terms)
+  style D fill:#8CFA78
+
+  subgraph UMLS MRCONSO
+  trans_model(Transliteration Model)
+  final_terms[(fa:fa-database UMLS MRCONSO<br />with transliterated terms)]
+  trans_model -->|Transliterating UMLS terms <br /> to target language| final_terms
+  end
+  A -->|Forum Post| B
+  B-. Matching post terms <br /> in target language .-> final_terms
+  final_terms-. Receiving CUI and STR .-> B
+  B -->|Medical term with CUI and STR| C
+  C -->|Language Model| D
+	C -->|UMLS Relatedness| D
+	C -->|Additional Features| D
+
+# Just a copy
+graph TD
+	A(Online Health Community)
+  B(High Recall Matcher)
+  C(Contextual Relevance Mode)
+  D(Relevant Medical Terms)
+  style D fill:#8CFA78
+
+  subgraph UMLS MRCONSO
+  trans_model(Transliteration Model)
+  final_terms[(fa:fa-database UMLS MRCONSO<br />with transliterated terms)]
+  trans_model -->|Transliterating UMLS terms <br /> to target language| final_terms
+  end
+  A -->|Forum Post| B
+  B-. Matching post terms <br /> in target language .-> final_terms
+  final_terms-. Receiving CUI and STR .-> B
+  B -->|Medical term with CUI and STR| C
+  C -->|Language Model| D
+	C -->|UMLS Relatedness| D
+	C -->|Additional Features| D
