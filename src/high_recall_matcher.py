@@ -16,11 +16,23 @@ from config import *
 
 stopword_path = data_dir + r"high_recall_matcher\heb_stop_words.txt"
 yap_processed_dir = data_dir + r"high_recall_matcher\posts\yap_processed"
-umls_df_data_path = data_dir + r"high_recall_matcher\HEB_TO_ENG_MRCONSO_RELATEDNESS.csv"
+
+DISORDERS_AND_CHEMICALS = True
+
+if DISORDERS_AND_CHEMICALS:
+    # umls_df_data_path = data_dir + r"high_recall_matcher\HEB_TO_ENG_DISORDERS_CHEMICALS.xlsx"
+    umls_df_data_path = data_dir + r"high_recall_matcher\HEB_TO_ENG_DISORDERS_CHEMICALS_utf-8-sig.csv"
+else:
+    umls_df_data_path = data_dir + r"high_recall_matcher\HEB_TO_ENG_MRCONSO_RELATEDNESS.csv"
+
 output_dir = data_dir + r"high_recall_matcher\output"
 
-SINGLE_WORD_SIMILARITY_THRESHOLD = 0.92
-MULTI_WORD_SIMILARITY_THRESHOLD = 0.92
+# SINGLE_WORD_SIMILARITY_THRESHOLD = 0.85
+# MULTI_WORD_SIMILARITY_THRESHOLD = 0.80 #single=85-multi=87,
+LOW_SINGLE_WORD_SIMILARITY_THRESHOLD = 0.80
+UP_SINGLE_WORD_SIMILARITY_THRESHOLD = 0.85
+LOW_MULTI_WORD_SIMILARITY_THRESHOLD = 0.85
+UP_MULTI_WORD_SIMILARITY_THRESHOLD = 0.90
 
 DIABETES, SCLEROSIS, DEPRESSION = 'diabetes', 'sclerosis', 'depression'
 
@@ -63,29 +75,43 @@ def words_similarity(a, b):
 
 
 def is_good_match(sim, word_match, i, similarity_threshold, all_matches_found):
-    return sim > similarity_threshold and i == len(word_match.split(" ")) and sim > similarity_threshold and word_match not in [m[0] for m in all_matches_found]
+    return len(word_match) > 3 and sim > similarity_threshold and i == len(word_match.split(" ")) and word_match not in [m[0] for m in all_matches_found]
 
 def find_umls_match_fast(msg_txt, searcher):
-    msg_words = msg_txt.split(" ")
-    msg_words = [w for w in msg_words if w != "" and w != " " and len(w) > 2]
-    ngrams = list(zip(*[msg_words[i:] for i in range(NUMBER_OF_GRAMS)]))
+    ngrams = prepare_msg_ngrams(msg_txt)
 
     all_matches_found = []
 
     for gram in ngrams:
         for i in range(1, NUMBER_OF_GRAMS + 1):
-            similarity_threshold = SINGLE_WORD_SIMILARITY_THRESHOLD if i == 1 else MULTI_WORD_SIMILARITY_THRESHOLD
+            low_similarity_threshold = LOW_SINGLE_WORD_SIMILARITY_THRESHOLD if i == 1 else LOW_MULTI_WORD_SIMILARITY_THRESHOLD
+            up_similarity_threshold = UP_SINGLE_WORD_SIMILARITY_THRESHOLD if i == 1 else UP_MULTI_WORD_SIMILARITY_THRESHOLD
             cand_term = " ".join(gram[:i])
-
-            search_result = searcher.ranked_search(cand_term, similarity_threshold)
+            # if 'השמנה' not in cand_term:
+            #     continue
+            search_result = searcher.ranked_search(cand_term, low_similarity_threshold)
             if search_result != []:
                 cosine_sim, word_match = search_result[0]  # Cosine-Sim. I can demand another sim
                 sim = words_similarity(word_match, cand_term)
-                if is_good_match(sim, word_match, i, similarity_threshold, all_matches_found):
+                if is_good_match(sim, word_match, i, up_similarity_threshold, all_matches_found):
                     result = (cand_term, word_match, round(sim, 3))
                     all_matches_found.append(result)
 
     return set(all_matches_found)
+
+
+def prepare_msg_ngrams(msg_txt):
+    msg_txt = msg_txt.replace(".", " ")
+    msg_words = msg_txt.split(" ")
+    msg_words = [w for w in msg_words if w != "" and w != " " and len(w) >= 2]
+    if len(msg_words) < 3:
+        msg_words.append("PAD")
+    ngrams = list(zip(*[msg_words[i:] for i in range(NUMBER_OF_GRAMS)]))
+    if len(ngrams) > 0:
+        last_gram = ngrams[-1]
+        extra_gram = last_gram[1], last_gram[2], 'PAD'
+        ngrams.append(extra_gram)
+    return ngrams
 
 
 def main():
@@ -95,8 +121,8 @@ def main():
     eng_searcher = Searcher(eng_db, CosineMeasure())
 
     handle_community(DIABETES, heb_searcher, eng_searcher, umls_data)
-    handle_community(SCLEROSIS, heb_searcher, eng_searcher, umls_data)
-    handle_community(DEPRESSION, heb_searcher, eng_searcher, umls_data)
+    # handle_community(SCLEROSIS, heb_searcher, eng_searcher, umls_data)
+    # handle_community(DEPRESSION, heb_searcher, eng_searcher, umls_data)
 
     print("Done")
 
@@ -144,7 +170,8 @@ def get_umls_data():
         heb_db.add(heb_w)
 
     for eng_w in eng_umls_list:
-        eng_db.add(eng_w)
+        lower_eng_w = eng_w.lower()
+        eng_db.add(lower_eng_w)
 
     return heb_db, eng_db, umls_data
 
@@ -158,6 +185,10 @@ def handle_community(chosen_community, heb_searcher, eng_searcher, umls_data):
     start_time = time.time()
 
     for idx, msg_data in enumerate(all_community_msgs_data):
+
+        # if 'סוכר בדם' not in msg_data['tokenized_text'] and 'side effects' not in msg_data['tokenized_text']:
+        #     continue
+
         msg_eng_text = get_eng_text(msg_data)
 
         english_matches_found = find_umls_match_fast(msg_eng_text, eng_searcher)
@@ -184,9 +215,15 @@ def handle_community(chosen_community, heb_searcher, eng_searcher, umls_data):
     detection_df['matches_found'] = all_matches_found
 
     if DEBUG:
-        output_path = output_dir + os.sep + chosen_community + "_debug.xlsx"
+        if DISORDERS_AND_CHEMICALS:
+            output_path = output_dir + os.sep + chosen_community + "_debug.xlsx"
+        else:
+            output_path = output_dir + os.sep + chosen_community + "_all_med_terms_debug.xlsx"
     else:
-        output_path = output_dir + os.sep + chosen_community + ".xlsx"
+        if DISORDERS_AND_CHEMICALS:
+            output_path = output_dir + os.sep + chosen_community + ".xlsx"
+        else:
+            output_path = output_dir + os.sep + chosen_community + "_all_med_terms.xlsx"
 
     detection_df.to_excel(output_path, encoding='utf-8', index=False)
 
@@ -233,7 +270,8 @@ def add_eng_umls_data(eng_matches, umls_data):
     eng_matches_with_codes = []
     for match in eng_matches:
         cand, word_match, sim = match
-        idx_of_match_in_df = umls_data[STRING_COLUMN][umls_data[STRING_COLUMN] == word_match].index[0]
+        # idx_of_match_in_df = umls_data[STRING_COLUMN][umls_data[STRING_COLUMN] == word_match].index[0]
+        idx_of_match_in_df = umls_data[umls_data[STRING_COLUMN].apply(lambda x: x.lower() == word_match)].index[0]
         match_cui = umls_data.iloc[idx_of_match_in_df]['CUI']
         eng_matches_with_codes.append((cand + "-" + word_match + " : " + str(sim), match_cui))
     return set(eng_matches_with_codes)

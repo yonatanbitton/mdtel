@@ -5,8 +5,10 @@ import sys
 
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import f1_score, recall_score, roc_auc_score, accuracy_score, confusion_matrix
+from sklearn.metrics import f1_score, recall_score, roc_auc_score, accuracy_score, confusion_matrix, precision_score
 from sklearn.model_selection import train_test_split
+
+from contextual_relevance.extract_dataset_with_feats.add_labels import remove_bad_char_and_lower
 
 module_path = os.path.abspath(os.path.join('..', '..', os.getcwd()))
 sys.path.append(module_path)
@@ -14,50 +16,129 @@ sys.path.append(module_path)
 def evaluate_community(community):
     # community_df = pd.read_csv(training_dataset_dir + os.sep + community + "_debug.csv")
     community_df = pd.read_excel(training_dataset_dir + os.sep + community + ".xlsx")
+
+    print(f"Number of instances: {len(community_df)}, labels distribution: ")
+    print(community_df['yi'].value_counts())
+
+    number_of_items_labeled_as_positive_but_wasnt_at_high_recall_list = get_number_of_items_labeled_as_positive_but_wasnt_at_high_recall_list(
+        community, community_df)
+
     selected_feats = ['match_freq', 'pred_3_window', 'pred_6_window', 'relatedness']
 
     best_joint_score = 0
     best_experiment_data = None
     n_estimators = 50
-    test_size = 0.20
+    test_size = 0.25
     for threshold in [i/10 for i in list(range(1, 10))]:
         experiment_data, score = get_results_for_threshold(community, community_df, n_estimators, selected_feats,
-                                                           test_size, threshold)
+                                                           test_size, threshold, number_of_items_labeled_as_positive_but_wasnt_at_high_recall_list)
 
         if score > best_joint_score:
             best_joint_score = score
             best_experiment_data = experiment_data
-    # print(best_experiment_data['confusion_matrix'])
+
+    print(best_experiment_data['confusion_matrix'])
+
+    print("False Negatives")
+    print(best_experiment_data['initial_results']['cm_examples']['FN'])
+    print("\nFalse Positives")
+    print(best_experiment_data['initial_results']['cm_examples']['FP'])
+
+    community_score = pd.DataFrame([{k:v for k,v in best_experiment_data.items() if k in ['f1_score', 'acc', 'precision' ,'recall']}], index=[community])
+    print(community_score)
+
     return best_experiment_data
 
 
-def get_results_for_threshold(community, community_df, n_estimators, selected_feats, test_size, threshold):
+def get_number_of_items_labeled_as_positive_but_wasnt_at_high_recall_list(community, community_df):
+    # Adding misses of high recall matcher
+    all_high_recall_matches = community_df['match'].values
+    labels_df = pd.read_excel(labels_dir + os.sep + community + "_labeled.xlsx")
+    labels_df['manual_tag'] = labels_df['manual_tag'].apply(lambda x: x.split(",") if str(x) != 'nan' else [])
+    labels_df['manual_tag'] = labels_df['manual_tag'].apply(lambda lst: [remove_bad_char_and_lower(x.strip()) for x in lst])
+
+    all_positive_labeled_terms = []
+    for lst in labels_df['manual_tag']:
+        all_positive_labeled_terms += lst
+    all_positive_labeled_terms = [x for x in all_positive_labeled_terms if len(x) > 3]
+
+    missed_items = [x for x in all_positive_labeled_terms if x not in all_high_recall_matches]
+    print(f"missed_items {len(missed_items)}")
+    print(missed_items)
+    number_of_items_labeled_as_positive_but_wasnt_at_high_recall_list = len(missed_items)
+
+    return number_of_items_labeled_as_positive_but_wasnt_at_high_recall_list
+
+
+def get_results_for_threshold(community, community_df, n_estimators, selected_feats, test_size, threshold, number_of_items_labeled_as_positive_but_wasnt_at_high_recall_list):
     model = RandomForestClassifier(n_estimators=n_estimators)
     X = community_df[selected_feats]
     y = community_df['yi']
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, shuffle=True)
     model.fit(X_train, y_train)
     y_pred = [x[1] for x in model.predict_proba(X_test)]
-    hard_y_pred = [x > threshold for x in y_pred]
-    cm = confusion_matrix(y_test, hard_y_pred)
-    f1_score_score = round(f1_score(y_test, hard_y_pred), 2)
-    recall_score_score = round(recall_score(y_test, hard_y_pred), 2)
-    acc = round(accuracy_score(y_test, hard_y_pred), 2)
-    roc_auc = round(roc_auc_score(y_test, y_pred), 2)
+    hard_y_pred = [int(x > threshold) for x in y_pred]
+    y_test = list(y_test.values)
+
+    cm_examples = get_confusion_matrix_examples(X_test, community_df, hard_y_pred, y_test)
+
+    acc, cm, f1_score_score, precision_val, recall_score_score, roc_auc \
+        = get_measures_for_y_test_and_hard_y_pred(hard_y_pred, y_pred, y_test)
+    initial_results = {'f1_score': f1_score_score, 'roc_auc': roc_auc, 'acc': acc, 'precision': precision_val,
+                       'recall': recall_score_score, 'community': community, 'model': model,
+                       'confusion_matrix': cm, 'cm_examples': cm_examples}
+    extra_false_negative = int(number_of_items_labeled_as_positive_but_wasnt_at_high_recall_list * test_size)
+
+    hard_y_pred = hard_y_pred + [0 for _ in range(extra_false_negative)]
+    y_test = y_test + [1 for _ in range(extra_false_negative)]
+    acc, cm, f1_score_score, precision_val, recall_score_score, roc_auc \
+        = get_measures_for_y_test_and_hard_y_pred(hard_y_pred, y_pred, y_test)
+
     score = f1_score_score
     model = RandomForestClassifier(n_estimators=n_estimators)
     model.fit(X, y)
-    experiment_data = {'f1_score': f1_score_score,'roc_auc': roc_auc, 'acc': acc,
+    experiment_data = {'f1_score': f1_score_score,'roc_auc': roc_auc, 'acc': acc, 'precision': precision_val,
                        'recall': recall_score_score, 'community': community, 'model': model,
-                       'confusion_matrix': cm}
+                       'confusion_matrix': cm, 'initial_results': initial_results}
     return experiment_data, score
+
+
+def get_confusion_matrix_examples(X_test, community_df, hard_y_pred, y_test):
+    confusion_matrix_examples = {'TP': [], 'TN': [], 'FP': [], 'FN': []}
+    for idx, (match_idx, pred, real_ans) in enumerate(zip(list(X_test.index), hard_y_pred, y_test)):
+        if pred == real_ans:
+            if pred == 1 and real_ans == 1:
+                confusion_matrix_examples['TP'].append(community_df.loc[match_idx]['match'])
+            elif pred == 0 and real_ans == 0:
+                confusion_matrix_examples['TN'].append(community_df.loc[match_idx]['match'])
+        else:
+            if pred == 1 and real_ans == 0:
+                confusion_matrix_examples['FP'].append(community_df.loc[match_idx]['match'])
+            elif pred == 0 and real_ans == 1:
+                confusion_matrix_examples['FN'].append(community_df.loc[match_idx]['match'])
+    return confusion_matrix_examples
+
+def get_measures_for_y_test_and_hard_y_pred(hard_y_pred, y_pred, y_test):
+    cm = confusion_matrix(y_test, hard_y_pred)
+    f1_score_score = round(f1_score(y_test, hard_y_pred), 2)
+    recall_score_score = round(recall_score(y_test, hard_y_pred), 2)
+    precision_val = round(precision_score(y_test, hard_y_pred), 2)
+    acc = round(accuracy_score(y_test, hard_y_pred), 2)
+    if len(y_pred) != len(y_test):
+        roc_auc = -1
+    else:
+        roc_auc = round(roc_auc_score(y_test, y_pred), 2)
+    return acc, cm, f1_score_score, precision_val, recall_score_score, roc_auc
+
 
 def main():
     diabetes_model_data = evaluate_community('diabetes')
+    exit()
+
     sclerosis_model_data = evaluate_community('sclerosis')
     depression_model_data = evaluate_community('depression')
 
-    res_df = pd.DataFrame([diabetes_model_data, sclerosis_model_data, depression_model_data], index=['diabetes', 'sclerosis', 'depression'], columns=['f1_score', 'roc_auc', 'recall', 'acc'])
+    res_df = pd.DataFrame([diabetes_model_data, sclerosis_model_data, depression_model_data], index=['diabetes', 'sclerosis', 'depression'], columns=['f1_score', 'recall', 'acc', 'precision'])
     print(res_df)
 
     trained_models = {'diabetes': diabetes_model_data, 'sclerosis': sclerosis_model_data,
@@ -68,7 +149,7 @@ def main():
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
-        parser = argparse.ArgumentParser(description='Description of your app.')
+        parser = argparse.ArgumentParser(description='UMLS Entity Linking Evaluator')
         parser.add_argument('data_dir', help='Path to the input directory.')
         parsed_args = parser.parse_args(sys.argv[1:])
         data_dir = parsed_args.data_dir
@@ -77,9 +158,10 @@ if __name__ == '__main__':
         from config import data_dir
 
     # training_dataset_dir = data_dir + r"contextual_relevance\training_dataset"
-
     training_dataset_dir = data_dir + r"contextual_relevance\training_dataset_with_labels"
     output_models_dir = data_dir + r"contextual_relevance\output_models"
+    # labels_dir = data_dir + r"manual_labeled"
+    labels_dir = data_dir + r'manual_labeled_v2\Phase1'
 
     main()
 

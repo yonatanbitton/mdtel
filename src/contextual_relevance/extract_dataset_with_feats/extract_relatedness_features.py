@@ -18,7 +18,8 @@ from config import data_dir, DEBUG
 
 input_dir = data_dir + r"contextual_relevance\initialized_training_dataset"
 calculated_relatedness_dir = data_dir + r"contextual_relevance\relatedness"
-umls_data_path = data_dir + "high_recall_matcher\HEB_TO_ENG_MRCONSO_RELATEDNESS.csv"
+# umls_data_path = data_dir + "high_recall_matcher\HEB_TO_ENG_MRCONSO_RELATEDNESS.csv"
+umls_data_path = data_dir + "high_recall_matcher\HEB_TO_ENG_DISORDERS_CHEMICALS_utf-8-sig.csv"
 
 output_dir = data_dir + r"contextual_relevance\relatedness\output"
 similarity_threshold = 0.70
@@ -67,7 +68,8 @@ def handle_community(community, umls_data, heb_searcher, eng_searcher):
         else:
             highest_relatedness_option, highest_relatedness_option_value = None, -1
 
-        # if row_idx % 100 == 0:
+        if row_idx % 100 == 0:
+            print(f"row_idx: {row_idx}, out of {len(comm_df)}")
         #     print(f"match: {row['match']}, word_and_lemma: {word_and_lemma} highest_relatedness_option: {highest_relatedness_option}, highest_relatedness_option_value: {highest_relatedness_option_value}")
 
         all_relatedness.append(highest_relatedness_option_value)
@@ -264,7 +266,7 @@ if __name__ == '__main__':
     eng_searcher = Searcher(eng_db, CosineMeasure())
 
     handle_community("diabetes", umls_data, heb_searcher, eng_searcher)
-    handle_community("sclerosis", umls_data, heb_searcher, eng_searcher)
-    handle_community("depression", umls_data, heb_searcher, eng_searcher)
+    # handle_community("sclerosis", umls_data, heb_searcher, eng_searcher)
+    # handle_community("depression", umls_data, heb_searcher, eng_searcher)
 
     print("Done")

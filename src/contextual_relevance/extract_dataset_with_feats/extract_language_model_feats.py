@@ -106,7 +106,7 @@ def get_ulmfit_model():
 if __name__ == '__main__':
     ulmfit_model, ngram_model = get_language_models()
     handle_community('diabetes', ulmfit_model, ngram_model)
-    handle_community('sclerosis', ulmfit_model, ngram_model)
-    handle_community('depression', ulmfit_model, ngram_model)
+    # handle_community('sclerosis', ulmfit_model, ngram_model)
+    # handle_community('depression', ulmfit_model, ngram_model)
 
     print("Done")

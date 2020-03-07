@@ -9,7 +9,8 @@ sys.path.append(module_path)
 
 from config import data_dir, DEBUG
 
-labels_dir = data_dir + r"manual_labeled"
+# labels_dir = data_dir + r"manual_labeled"
+labels_dir = data_dir + r'manual_labeled_v2\Phase1'
 extracted_feats_dir = data_dir + r"contextual_relevance\extracted_training_dataset"
 
 output_dir = data_dir + r"contextual_relevance\training_dataset_with_labels"
@@ -17,20 +18,22 @@ output_dir = data_dir + r"contextual_relevance\training_dataset_with_labels"
 if DEBUG:
     print(f"*** DEBUG MODE: Taking 100 rows only ***")
 
-
 def handle_community(community):
     print(f"community: {community}")
-    labeled_df = pd.read_excel(labels_dir + os.sep + community + ".xlsx")
+    labeled_df = pd.read_excel(labels_dir + os.sep + community + "_labeled.xlsx")
 
     if DEBUG:
         labeled_df = labeled_df.head(101)
     labeled_df['manual_tag'] = labeled_df['manual_tag'].apply(lambda x: [] if str(x) == 'nan' else x.split(","))
-    labeled_df['manual_tag'] = labeled_df['manual_tag'].apply(lambda lst: [x.strip() for x in lst])
+    labeled_df['manual_tag'] = labeled_df['manual_tag'].apply(lambda lst: [remove_bad_char_and_lower(x.strip()) for x in lst])
+
     extract_feats_df = pd.read_excel(extracted_feats_dir + os.sep + community + ".xlsx")
     print(f"Original Shape: {extract_feats_df.shape}")
 
     all_labels = []
     for r_idx, row in extract_feats_df.iterrows():
+        # if 'מאניה דיפרסיה' not in row['match']:
+        #     continue
         try:
             relevant_labeled_df = labeled_df.iloc[row['row_idx']]
         except Exception as ex:
@@ -45,6 +48,7 @@ def handle_community(community):
         else:
             best_match, best_match_sim = get_best_match(relevant_labeled_df, row)
             if best_match:
+                extract_feats_df.at[r_idx, 'match'] = best_match
                 all_labels.append(1)
                 # print(f'{r_idx}: {best_match}-{row["match"]}: {best_match_sim}')
             else:
@@ -62,6 +66,19 @@ def handle_community(community):
     print(f"Writing file at shape: {extract_feats_df.shape} to fpath: {fpath}")
     extract_feats_df.to_excel(fpath, index=False)
 
+def remove_bad_char_and_lower(w : str):
+    if "'" in w:
+        w = w.replace("'", "")
+    if word_is_english(w):
+        w = w.lower()
+    return w
+
+
+def word_is_english(word):
+   for c in word:
+      if 'a' <= c <= 'z' or 'A' <= c <= 'C':
+         return True
+   return False
 
 def get_best_match(relevant_labeled_df, row):
     best_match = None
@@ -81,7 +98,7 @@ def words_similarity(a, b):
 
 if __name__ == '__main__':
     handle_community('diabetes')
-    handle_community('sclerosis')
-    handle_community('depression')
+    # handle_community('sclerosis')
+    # handle_community('depression')
 
     print("Done")
