@@ -8,14 +8,14 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import f1_score, recall_score, roc_auc_score, accuracy_score, confusion_matrix, precision_score
 from sklearn.model_selection import train_test_split
 
-from contextual_relevance.extract_dataset_with_feats.add_labels import remove_bad_char_and_lower
+from contextual_relevance.extract_dataset_with_feats.add_labels_old_to_delete import remove_bad_char_and_lower
 
 module_path = os.path.abspath(os.path.join('..', '..', os.getcwd()))
 sys.path.append(module_path)
 
 def evaluate_community(community):
     # community_df = pd.read_csv(training_dataset_dir + os.sep + community + "_debug.csv")
-    community_df = pd.read_excel(training_dataset_dir + os.sep + community + ".xlsx")
+    community_df = pd.read_csv(training_dataset_dir + os.sep + community + ".csv")
 
     print(f"Number of instances: {len(community_df)}, labels distribution: ")
     print(community_df['yi'].value_counts())
@@ -132,10 +132,9 @@ def get_measures_for_y_test_and_hard_y_pred(hard_y_pred, y_pred, y_test):
 
 
 def main():
-    diabetes_model_data = evaluate_community('diabetes')
-    exit()
-
     sclerosis_model_data = evaluate_community('sclerosis')
+    exit()
+    diabetes_model_data = evaluate_community('diabetes')
     depression_model_data = evaluate_community('depression')
 
     res_df = pd.DataFrame([diabetes_model_data, sclerosis_model_data, depression_model_data], index=['diabetes', 'sclerosis', 'depression'], columns=['f1_score', 'recall', 'acc', 'precision'])

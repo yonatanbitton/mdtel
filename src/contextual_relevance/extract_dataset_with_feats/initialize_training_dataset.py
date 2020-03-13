@@ -15,10 +15,8 @@ from config import data_dir, DEBUG
 input_dir = data_dir + r"high_recall_matcher\output"
 output_dir = data_dir + r"contextual_relevance\initialized_training_dataset"
 
-DISORDERS_AND_CHEMICALS = True
-
-if DEBUG:
-    print(f"*** DEBUG MODE: Taking 100 rows only ***")
+# DEBUG = True
+SIMILARITY_THRESHOLD = 0.85
 
 class WindowsMaker:
     def __init__(self):
@@ -28,14 +26,15 @@ class WindowsMaker:
         seq = difflib.SequenceMatcher(None, a, b)
         return seq.ratio()
 
-    # def get_matches(self, match, txt_words):
-    #     match_indexes = []
-    #     for idx, w in enumerate(txt_words):
-    #         if self.words_similarity(w, match) > 0.85:
-    #             match_indexes.append(idx)
-    #     return match_indexes
+    def match_not_similar_to_short_match(self, match, all_short_matches):
+        similar = False
+        for m in all_short_matches:
+            if self.words_similarity(m, match) > SIMILARITY_THRESHOLD:
+                similar = True
+                break
+        return not similar
 
-    def get_matches(self, match, txt_words):
+    def get_all_occurences_of_match_in_text(self, match, txt_words):
 
         match_indexes = []
         NUMBER_OF_GRAMS = 3
@@ -48,11 +47,14 @@ class WindowsMaker:
             extra_gram_2 = last_gram[2], 'PAD', 'PAD'
             ngrams.append(extra_gram_2)
 
-        for gram in ngrams:
+        for gram_idx, gram in enumerate(ngrams):
             cand_term = " ".join(gram[:len_match])
-            if self.words_similarity(cand_term, match) > 0.85:
-                cand_first_idx = txt_words.index(cand_term.split(" ")[0])
-                match_indexes.append(cand_first_idx)
+            if self.words_similarity(cand_term, match) > SIMILARITY_THRESHOLD:
+                matches_with_idx = " ".join(txt_words[gram_idx:gram_idx+len_match])
+                if not self.words_similarity(matches_with_idx, match) > SIMILARITY_THRESHOLD:
+                    print("FUck", matches_with_idx, match)
+                assert self.words_similarity(matches_with_idx, match) > SIMILARITY_THRESHOLD
+                match_indexes.append(gram_idx)
 
         return match_indexes
 
@@ -73,58 +75,66 @@ class WindowsMaker:
         train_instances = []
 
         for row_idx, row in community_df.iterrows():
-            txt = row['tokenized_txt']
-
-            # if "side effects" not in txt:
-            #     continue
-
-            if str(txt) == 'nan':
+            if str(row['tokenized_text']) == 'nan':
                 continue
+            txt, txt_words = self.get_txt_words(row)
+            word_umls_matches, word_cand_matches = self.get_matches_from_high_recall_list(row)
 
-            txt = txt.replace(".", " ")
-            txt_words = txt.split(" ")
-            txt_words = [x.lower() if word_is_english(x) else x for x in txt_words]
-            matches_found = row['matches_found']
-            matches_words = [match[0].split('-')[0] for match in matches_found]
-
-            for match_idx, match in enumerate(matches_words):
+            for umls_match, cand_match in zip(word_umls_matches, word_cand_matches):
                 # get the matches indexes in text
-                match_indexes = self.get_matches(match, txt_words)
+                occurences_indexes = self.get_all_occurences_of_match_in_text(umls_match, txt_words)
 
                 # create windows
-                for idx in match_indexes:
-                    match_3_window, match_6_window, match_10_window = self.get_windows_for_match(txt_words, idx)
+                for match_occurence_idx_in_txt_words in occurences_indexes:
+                    match_3_window, match_6_window, match_10_window = self.get_windows_for_match(txt_words, match_occurence_idx_in_txt_words)
 
-                    match_data = {'match': match, 'row_idx': row_idx, 'match_idx': match_idx, 'tokenized_txt': row['tokenized_txt'], 'match_3_window': match_3_window,
-                                  'match_6_window': match_6_window,
-                                  'match_10_window': match_10_window}
+                    match_data = {'umls_match': umls_match, 'cand_match': cand_match, 'file_name': row['file_name'],
+                                  'row_idx': row_idx,
+                                  'match_occurence_idx_in_txt_words': match_occurence_idx_in_txt_words,
+                                  'occurences_indexes': occurences_indexes,
+                                  'txt_words': json.dumps(txt_words, ensure_ascii=False),
+                                  'tokenized_text': txt, 'match_3_window': match_3_window,
+                                  'match_6_window': match_6_window, 'match_10_window': match_10_window}
                     train_instances.append(match_data)
+
         df = pd.DataFrame(train_instances)
         print(f"WindowsMaker finished with community. Got cols: {df.columns}")
         print(df.head(3))
         return df
 
+    def get_txt_words(self, row):
+        txt = row['tokenized_text']
+        txt = txt.replace(".", " ")
+        txt_words = txt.split(" ")
+        txt_words = [x.lower() if word_is_english(x) else x for x in txt_words]
+        return txt, txt_words
+
+    def get_matches_from_high_recall_list(self, row):
+        matches_found = row['matches_found']
+        word_umls_matches = [m['word_match'] for m in matches_found]
+        word_cand_matches = [m['cand'] for m in matches_found]
+        return word_umls_matches, word_cand_matches
+
+
 def handle_community(community):
     print(f"community: {community}")
-    if not DISORDERS_AND_CHEMICALS:
-        df = pd.read_excel(input_dir + os.sep + community + "_all_med_terms_debug.xlsx")
-    else:
-        df = pd.read_excel(input_dir + os.sep + community + "_debug.xlsx")
 
     if DEBUG:
-        df = df.head(100)
+        df = pd.read_csv(input_dir + os.sep + community + "_debug.csv")
+    else:
+        df = pd.read_csv(input_dir + os.sep + community + ".csv")
 
     windows_maker = WindowsMaker()
     df = windows_maker.go(df)
 
-    fpath = output_dir + os.sep + community + '.xlsx'
+    fpath = output_dir + os.sep + community + '.csv'
     print(f"Writing file at shape: {df.shape} to fpath: {fpath}")
-    df.to_excel(fpath, index=False)
+    df.to_csv(fpath, index=False, encoding='utf-8-sig')
 
 
 if __name__ == '__main__':
-    handle_community('diabetes')
     handle_community('sclerosis')
+    handle_community('diabetes')
     handle_community('depression')
 
     print("Done")

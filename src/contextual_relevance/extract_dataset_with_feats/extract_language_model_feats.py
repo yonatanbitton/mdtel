@@ -6,14 +6,14 @@ import sys
 module_path = os.path.abspath(os.path.join('..', '..', '..', '..', os.getcwd()))
 sys.path.append(module_path)
 
-from config import data_dir, DEBUG
+from config import data_dir
 
 input_dir = data_dir + r"contextual_relevance"
 initialized_trainig_dataset_dir = data_dir + r"contextual_relevance\initialized_training_dataset"
 output_dir = data_dir + r"contextual_relevance\language_models\output"
 
 def get_ulmfit_feats(row, loaded_learn):
-    match = row['match']
+    match = row['cand_match']
     match_10_window = row['match_10_window']
     match_6_window = row['match_6_window']
     match_3_window = row['match_3_window']
@@ -30,14 +30,14 @@ def get_ngram_feats(row, ngram_model, n=2):
         p_2_window = 0
     else:
         context = tuple(row['match_3_window'].split(" ")[3 - n:])
-        p_2_window = ngram_model[context][row['match']]
+        p_2_window = ngram_model[context][row['cand_match']]
     return p_2_window
 
 
 
 def handle_community(community, ulmfit_model, ngram_model):
     print(f"community: {community}")
-    df = pd.read_excel(initialized_trainig_dataset_dir + os.sep + community + ".xlsx")
+    df = pd.read_csv(initialized_trainig_dataset_dir + os.sep + community + ".csv")
 
     preds_10_window = []
     preds_6_window = []
@@ -65,9 +65,9 @@ def handle_community(community, ulmfit_model, ngram_model):
     df['pred_2_window'] = preds_2_window
     cols = list(df.columns)
     print(f"cols: {cols}, {len(cols)}")
-    fpath = output_dir + os.sep + community + '_output.xlsx'
+    fpath = output_dir + os.sep + community + '_output.csv'
     print(f"Writing file at shape: {df.shape} to fpath: {fpath}")
-    df.to_excel(fpath, index=False)
+    df.to_csv(fpath, index=False, encoding='utf-8-sig')
 
 def dd2():
     return 0
@@ -105,8 +105,8 @@ def get_ulmfit_model():
 
 if __name__ == '__main__':
     ulmfit_model, ngram_model = get_language_models()
+    handle_community('sclerosis', ulmfit_model, ngram_model)
     handle_community('diabetes', ulmfit_model, ngram_model)
-    # handle_community('sclerosis', ulmfit_model, ngram_model)
-    # handle_community('depression', ulmfit_model, ngram_model)
+    handle_community('depression', ulmfit_model, ngram_model)
 
     print("Done")

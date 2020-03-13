@@ -1,7 +1,6 @@
 import difflib
 import os
 import sys
-import traceback
 
 import pandas as pd
 from simstring.database.dict import DictDatabase
@@ -14,7 +13,7 @@ from contextual_relevance.extract_dataset_with_feats.yap.yap_api import YapApi
 module_path = os.path.abspath(os.path.join('..', '..', '..', os.getcwd()))
 sys.path.append(module_path)
 
-from config import data_dir, DEBUG
+from config import data_dir
 
 input_dir = data_dir + r"contextual_relevance\initialized_training_dataset"
 calculated_relatedness_dir = data_dir + r"contextual_relevance\relatedness"
@@ -41,11 +40,11 @@ def handle_community(community, umls_data, heb_searcher, eng_searcher):
     calculated_relatedness_dict = get_relatedness_dict(community)
 
     print(f"community: {community}")
-    comm_df = pd.read_excel(input_dir + os.sep + community + ".xlsx")
+    comm_df = pd.read_csv(input_dir + os.sep + community + ".csv")
 
     all_relatedness = []
     for row_idx, row in comm_df.iterrows():
-        match = row['match']
+        match = row['umls_match']
 
         word_and_lemma = get_word_token_lemma(match, row)
 
@@ -70,13 +69,13 @@ def handle_community(community, umls_data, heb_searcher, eng_searcher):
 
         if row_idx % 100 == 0:
             print(f"row_idx: {row_idx}, out of {len(comm_df)}")
-        #     print(f"match: {row['match']}, word_and_lemma: {word_and_lemma} highest_relatedness_option: {highest_relatedness_option}, highest_relatedness_option_value: {highest_relatedness_option_value}")
+
 
         all_relatedness.append(highest_relatedness_option_value)
 
     comm_df['relatedness'] = all_relatedness
 
-    comm_df.to_excel(output_dir + os.sep + community + "_output.xlsx", index=False)
+    comm_df.to_csv(output_dir + os.sep + community + "_output.csv", index=False, encoding='utf-8-sig')
 
 
 def get_word_token_lemma(match, row):
@@ -94,7 +93,7 @@ def get_word_token_lemma(match, row):
 
 
 def get_seperated_word(match, row):
-    tokenized_txt = row['tokenized_txt']
+    tokenized_txt = row['tokenized_text']
     if '\xa0' in tokenized_txt:
         tokenized_txt = tokenized_txt.replace('\xa0', "")
     words_and_lemmas = get_words_and_lemmas(tokenized_txt)
@@ -265,8 +264,8 @@ if __name__ == '__main__':
     heb_searcher = Searcher(heb_db, CosineMeasure())
     eng_searcher = Searcher(eng_db, CosineMeasure())
 
+    handle_community("sclerosis", umls_data, heb_searcher, eng_searcher)
     handle_community("diabetes", umls_data, heb_searcher, eng_searcher)
-    # handle_community("sclerosis", umls_data, heb_searcher, eng_searcher)
-    # handle_community("depression", umls_data, heb_searcher, eng_searcher)
+    handle_community("depression", umls_data, heb_searcher, eng_searcher)
 
     print("Done")

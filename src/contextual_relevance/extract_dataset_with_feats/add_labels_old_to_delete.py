@@ -10,7 +10,7 @@ sys.path.append(module_path)
 from config import data_dir, DEBUG
 
 # labels_dir = data_dir + r"manual_labeled"
-labels_dir = data_dir + r'manual_labeled_v2\Phase1'
+labels_dir = data_dir + r'manual_labeled_v2\first_20_posts_simulation'
 extracted_feats_dir = data_dir + r"contextual_relevance\extracted_training_dataset"
 
 output_dir = data_dir + r"contextual_relevance\training_dataset_with_labels"

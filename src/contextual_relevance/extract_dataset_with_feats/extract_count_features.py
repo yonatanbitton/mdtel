@@ -6,7 +6,7 @@ import sys
 module_path = os.path.abspath(os.path.join('..', '..', '..', os.getcwd()))
 sys.path.append(module_path)
 
-from config import data_dir, DEBUG
+from config import data_dir
 
 wiki_data_dir = data_dir + r"contextual_relevance\wiki_data.txt"
 
@@ -31,26 +31,27 @@ def prepare_wiki_data_counter():
 
 def handle_community(community):
     print(f"community: {community}")
-    comm_df = pd.read_excel(input_dir + os.sep + community + ".xlsx")
+    comm_df = pd.read_csv(input_dir + os.sep + community + ".csv")
 
     all_match_counts = []
     all_match_freqs = []
     for row_idx, row in comm_df.iterrows():
-        match_count = all_words_counter[row['match']]
+        match_count = all_words_counter[row['umls_match']]
         match_freq = match_count / number_of_unique_tokens
         all_match_counts.append(match_count)
         all_match_freqs.append(match_freq)
         if row_idx % 100 == 0:
-            print(f"match: {row['match']}, count: {match_count}, freq: {match_freq}")
+            print(f"match: {row['umls_match']}, count: {match_count}, freq: {match_freq}")
     comm_df['match_count'] = all_match_counts
     comm_df['match_freq'] = all_match_freqs
-    comm_df.to_excel(output_dir + os.sep + community + "_output.xlsx", index=False)
+    comm_df.to_csv(output_dir + os.sep + community + "_output.csv", index=False, encoding='utf-8-sig')
 
-all_words_counter = prepare_wiki_data_counter()
-number_of_unique_tokens = len(all_words_counter)
+if __name__ == '__main__':
+    all_words_counter = prepare_wiki_data_counter()
+    number_of_unique_tokens = len(all_words_counter)
 
-handle_community("diabetes")
-handle_community("sclerosis")
-handle_community("depression")
+    handle_community("sclerosis")
+    handle_community("diabetes")
+    handle_community("depression")
 
-print("Done")
+    print("Done")
