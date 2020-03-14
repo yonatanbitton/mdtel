@@ -1,14 +1,15 @@
 import difflib
 import json
 import os
-import time
+import re
+import sys
 
 import pandas as pd
 from simstring.database.dict import DictDatabase
 from simstring.feature_extractor.character_ngram import CharacterNgramFeatureExtractor
 from simstring.measure.cosine import CosineMeasure
 from simstring.searcher import Searcher
-import sys
+
 module_path = os.path.abspath(os.path.join('..', os.getcwd()))
 sys.path.append(module_path)
 
@@ -42,9 +43,12 @@ if DEBUG:
 else:
     print(f"Debug == False. Might take some time.")
 
+number_of_not_exact_matches = 0
+number_of_lemma_matches = 0
 
 def get_data(chosen_community):
     community_df = pd.read_excel(input_dir + os.sep + chosen_community + "_posts.xlsx")
+    community_df['words_and_lemmas'] = community_df['words_and_lemmas'].apply(lambda x: json.loads(x) if str(x) != 'nan' else 'nan')
     if DEBUG:
         community_df = community_df.head(20)
     return community_df
@@ -60,12 +64,15 @@ def words_similarity(a, b):
     return seq.ratio()
 
 
-def is_good_match(sim, word_match, i, similarity_threshold, all_matches_found):
-    return len(word_match) > 3 and sim > similarity_threshold and i == len(word_match.split(" ")) and word_match not in [m[0] for m in all_matches_found]
+def is_good_match(sim, word_match, i, similarity_threshold):
+    return len(word_match) > 3 and sim > similarity_threshold and i == len(word_match.split(" "))
 
-def find_umls_match_fast(msg_txt, searcher):
+# def is_good_match(sim, word_match, i, similarity_threshold, all_matches_found):
+#     return len(word_match) > 3 and sim > similarity_threshold and i == len(word_match.split(" ")) and word_match not in [m[0] for m in all_matches_found]
+
+def find_umls_match_fast(msg_txt, searcher, row, msg_key_lang):
     if msg_txt == "":
-        return set()
+        return []
 
     ngrams = prepare_msg_ngrams(msg_txt)
 
@@ -78,13 +85,47 @@ def find_umls_match_fast(msg_txt, searcher):
             cand_term = " ".join(gram[:i])
             search_result = searcher.ranked_search(cand_term, low_similarity_threshold)
             if search_result != []:
-                cosine_sim, word_match = search_result[0]  # Cosine-Sim. I can demand another sim
-                sim = words_similarity(word_match, cand_term)
-                if is_good_match(sim, word_match, i, up_similarity_threshold, all_matches_found):
-                    result = (cand_term, word_match, round(sim, 3))
+                cosine_sim, umls_match = search_result[0]  # Cosine-Sim. I can demand another sim
+                sim = words_similarity(umls_match, cand_term)
+                if is_good_match(sim, umls_match, i, up_similarity_threshold):
+                    all_match_occ, cand_match_occurence_in_txt, curr_occurence_offset = get_cand_occ_in_text(
+                        all_matches_found, cand_term, msg_key_lang, row)
+                    result = {'cand_match': cand_term, 'umls_match': umls_match, 'cand_match_occurence_in_txt': cand_match_occurence_in_txt,
+                              'sim': round(sim, 3), 'curr_occurence_offset': curr_occurence_offset,
+                              'all_match_occ': all_match_occ, 'msg_key_lang': msg_key_lang}
                     all_matches_found.append(result)
 
-    return set(all_matches_found)
+    return all_matches_found
+
+
+def get_cand_occ_in_text(all_matches_found, cand_term, msg_key_lang, row):
+    cand_match_occurence_in_txt = cand_term
+    if msg_key_lang == 'lemmas':
+        curr_occurence_offset, all_match_occ = "lemma", "lemma"
+    else:
+        curr_occurence_offset, all_match_occ = find_occurence_offset(all_matches_found, cand_match_occurence_in_txt,
+                                                                     row, msg_key_lang)
+    return all_match_occ, cand_match_occurence_in_txt, curr_occurence_offset
+
+
+def find_occurence_offset(all_matches_found, cand_match_occurence_in_txt, row, msg_key_lang):
+    post_txt = row['post_txt']
+    post_txt = post_txt.replace("\n", " ").replace(".", " ").replace(","," ")
+    # all_match_occ = [m.start() for m in re.finditer(r"." + cand_match_occurence_in_txt, post_txt)]
+    all_match_occ = [m.start() for m in re.finditer(cand_match_occurence_in_txt, post_txt)]
+
+    curr_occurence = 0
+    for m in all_matches_found:
+        if m['cand_match_occurence_in_txt'] == cand_match_occurence_in_txt:
+            curr_occurence += 1
+
+    if all_match_occ == [] or len(all_match_occ) <= curr_occurence:
+        global number_of_not_exact_matches
+        number_of_not_exact_matches += 1
+        return None, None
+
+    curr_occurence_offset = all_match_occ[curr_occurence]
+    return curr_occurence_offset, all_match_occ
 
 
 def prepare_msg_ngrams(msg_txt):
@@ -109,9 +150,9 @@ def main():
     heb_searcher = Searcher(heb_db, CosineMeasure())
     eng_searcher = Searcher(eng_db, CosineMeasure())
 
-    # handle_community(SCLEROSIS, heb_searcher, eng_searcher, umls_data)
+    handle_community(SCLEROSIS, heb_searcher, eng_searcher, umls_data)
     # handle_community(DIABETES, heb_searcher, eng_searcher, umls_data)
-    handle_community(DEPRESSION, heb_searcher, eng_searcher, umls_data)
+    # handle_community(DEPRESSION, heb_searcher, eng_searcher, umls_data)
 
     print("Done")
 
@@ -203,43 +244,48 @@ def get_english_and_hebrew_matches(eng_searcher, heb_searcher, row, umls_data):
     all_hebrew_matches_found = get_hebrew_matches(heb_searcher, row, umls_data)
     # msg_matches_found = list(all_hebrew_matches_found.union(english_matches_found))
 
-    msg_matches_found = list_union(all_hebrew_matches_found, english_matches_found)
+    msg_matches_found = list_union(all_hebrew_matches_found, english_matches_found, post_key='union')
 
     return msg_matches_found
 
 
 def get_hebrew_matches(heb_searcher, row, umls_data):
     all_hebrew_matches_found = []
-    for hebrew_key in ['post_txt', 'tokenized_text', 'segmented_text', 'lemmas']:
+    # for hebrew_key in ['tokenized_text', 'segmented_text', 'lemmas']:
+    for hebrew_key in ['tokenized_text', 'lemmas']:
         msg_key_txt = row[hebrew_key]
-        matches_found_for_key = find_umls_match_fast(msg_key_txt, heb_searcher)
+        matches_found_for_key = find_umls_match_fast(msg_key_txt, heb_searcher, row, hebrew_key)
 
         if matches_found_for_key not in [(), []]:
-            matches_found_for_key = take_highest_sim_matches(matches_found_for_key, umls_data)
+            # matches_found_for_key = take_highest_sim_matches(matches_found_for_key, umls_data)
             matches_found_for_key = add_heb_umls_data(matches_found_for_key, umls_data, hebrew_key)
 
-        all_hebrew_matches_found = list_union(all_hebrew_matches_found, matches_found_for_key)
+        all_hebrew_matches_found = list_union(all_hebrew_matches_found, matches_found_for_key, hebrew_key)
 
-    return all_hebrew_matches_found
-
-
-def list_union(all_hebrew_matches_found, matches_found_for_key):
-    for d in matches_found_for_key:
-        if d not in all_hebrew_matches_found:
-            all_hebrew_matches_found.append(d)
     return all_hebrew_matches_found
 
 def get_english_matches(eng_searcher, row, umls_data):
     msg_eng_text = get_eng_text(row['tokenized_text'])
-    english_matches_found = find_umls_match_fast(msg_eng_text, eng_searcher)
-    if english_matches_found != set():
-        english_matches_found = add_eng_umls_data(english_matches_found, umls_data)
+    english_matches_found = find_umls_match_fast(msg_eng_text, eng_searcher, row, msg_key_lang='english')
+    if english_matches_found not in [set(), []]:
+        english_matches_found = add_eng_umls_data(english_matches_found, umls_data, row)
     return english_matches_found
+
+
+def list_union(all_hebrew_matches_found, matches_found_for_key, post_key):
+    for d in matches_found_for_key:
+        all_existing_umls_matches = [m['umls_match'] for m in all_hebrew_matches_found]
+        if d['umls_match'] not in all_existing_umls_matches:
+            if post_key == 'lemmas':
+                global number_of_lemma_matches
+                number_of_lemma_matches += 1
+            all_hebrew_matches_found.append(d)
+    return all_hebrew_matches_found
 
 
 def print_stats(idx, row, msg_matches_found, number_of_posts):
     if idx % 100 == 0 and idx > 0:
-        print(f"idx: {idx}, out of: {number_of_posts}, total {round((idx / number_of_posts) * 100, 3)}%")
+        print(f"idx: {idx}, out of: {number_of_posts}, total {round((idx / number_of_posts) * 100, 3)}%, number_of_lemma_matches: {number_of_lemma_matches}")
     if DEBUG or idx % 100 == 0:
         if msg_matches_found != None and msg_matches_found != []:
             print(row['tokenized_text'])
@@ -258,30 +304,42 @@ def take_highest_sim_matches(heb_matches_found, umls_data):
     return heb_matches_found
 
 
+def get_semantic_type(match_tui):
+    if match_tui in disorder_tuis:
+        return DISORDER
+    elif match_tui in chemical_or_drug_tuis:
+        return CHEMICAL_OR_DRUG
+
+
 def add_heb_umls_data(heb_matches, umls_data, hebrew_key):
     heb_matches_with_codes = []
-    for match in heb_matches:
-        cand, word_match, sim = match
-        idx_of_match_in_df = umls_data['HEB'].searchsorted(word_match)
+    for match_d in heb_matches:
+        idx_of_match_in_df = umls_data['HEB'].searchsorted(match_d['umls_match'])
         match_cui = umls_data.iloc[idx_of_match_in_df]['CUI']
+        match_tui = umls_data.iloc[idx_of_match_in_df]['TUI']
+        semantic_type = get_semantic_type(match_tui)
         match_eng = umls_data.iloc[idx_of_match_in_df][STRING_COLUMN]
-        heb_d = {'cand': cand, 'word_match': word_match, 'sim': sim, 'cui': match_cui, 'match_eng': match_eng, 'hebrew_key': hebrew_key}
+        heb_d = {'cand_match': match_d['cand_match'], 'umls_match': match_d['umls_match'], 'sim': match_d['sim'],
+                 'cui': match_cui, 'match_eng': match_eng, 'hebrew_key': hebrew_key, 'match_tui': match_tui,
+                 'semantic_type': semantic_type, 'all_match_occ': match_d['all_match_occ'],
+                 'curr_occurence_offset': match_d['curr_occurence_offset']}
         if heb_d not in heb_matches_with_codes:
             heb_matches_with_codes.append(heb_d)
         # heb_matches_with_codes.append((cand + "-" + word_match + " ( " + match_eng + " )" + " : " + str(sim), match_cui))
     return heb_matches_with_codes
 
-def add_eng_umls_data(eng_matches, umls_data):
+def add_eng_umls_data(eng_matches, umls_data, row):
     eng_matches_with_codes = []
-    for match in eng_matches:
-        cand, word_match, sim = match
-        # idx_of_match_in_df = umls_data[STRING_COLUMN][umls_data[STRING_COLUMN] == word_match].index[0]
-        idx_of_match_in_df = umls_data[umls_data[STRING_COLUMN].apply(lambda x: x.lower() == word_match)].index[0]
+    for match_d in eng_matches:
+        idx_of_match_in_df = umls_data[umls_data[STRING_COLUMN].apply(lambda x: x.lower() == match_d['umls_match'])].index[0]
         match_cui = umls_data.iloc[idx_of_match_in_df]['CUI']
-        eng_d = {'cand': cand, 'word_match': word_match, 'sim': sim, 'cui': match_cui}
+        match_tui = umls_data.iloc[idx_of_match_in_df]['TUI']
+        semantic_type = get_semantic_type(match_tui)
+        eng_d = {'cand_match': match_d['cand_match'], 'umls_match': match_d['umls_match'], 'sim': match_d['sim'],
+                 'cui': match_cui, 'match_tui': match_tui, 'semantic_type': semantic_type, 'all_match_occ': match_d['all_match_occ'],
+                 'curr_occurence_offset': match_d['curr_occurence_offset']}
         if eng_d not in eng_matches_with_codes:
             eng_matches_with_codes.append(eng_d)
-        # eng_matches_with_codes.append((cand + "-" + word_match + " : " + str(sim), match_cui))
     return eng_matches_with_codes
 
 def get_eng_text(msg_tokenized_txt):

@@ -4,7 +4,7 @@ import pandas as pd
 import json
 import sys
 
-from high_recall_matcher import word_is_english
+from debug.high_recall_matcher import word_is_english
 
 module_path = os.path.abspath(os.path.join('..', '..', '..', '..', os.getcwd()))
 sys.path.append(module_path)
@@ -111,8 +111,8 @@ class WindowsMaker:
 
     def get_matches_from_high_recall_list(self, row):
         matches_found = row['matches_found']
-        word_umls_matches = [m['word_match'] for m in matches_found]
-        word_cand_matches = [m['cand'] for m in matches_found]
+        word_umls_matches = [m['umls_match'] for m in matches_found]
+        word_cand_matches = [m['cand_match'] for m in matches_found]
         return word_umls_matches, word_cand_matches
 
 

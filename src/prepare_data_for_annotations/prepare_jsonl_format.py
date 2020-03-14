@@ -15,6 +15,6 @@ def handle_comm(comm):
 
 
 if __name__ == '__main__':
-    handle_comm('sclerosis')
-    handle_comm('diabetes')
+    # handle_comm('sclerosis')
+    # handle_comm('diabetes')
     handle_comm('depression')

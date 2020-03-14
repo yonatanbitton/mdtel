@@ -29,6 +29,7 @@ def handle_community(community):
         comm_lines = comm_lines[:ANNOTATIONS_LENGTH]
 
     extract_feats_df = pd.read_csv(extracted_feats_dir + os.sep + community + ".csv")
+    extract_feats_df['occurences_indexes'] = extract_feats_df['occurences_indexes'].apply(json.loads)
     print(f"Original Shape: {extract_feats_df.shape}")
 
     posts_df = pd.read_excel(posts_dir + os.sep + community + "_posts.xlsx")
@@ -44,6 +45,8 @@ def handle_community(community):
         relevant_labeled_df = labels_df[labels_df['file_name'] == row['file_name']].iloc[0]
 
         assert relevant_labeled_df['tokenized_text'] == row['tokenized_text']
+
+        text_for_offsets = relevant_labeled_df['text']
 
         if row['cand_match'] in relevant_labeled_df[FINAL_LABELS_COL] or row['umls_match'] in relevant_labeled_df[FINAL_LABELS_COL]:
             all_labels.append(1)
@@ -97,10 +100,11 @@ def get_data_from_annotation_file(comm_lines, posts_df):
             user_6_labels = []
             for ann in line_annotations:
                 annotated_term = line['text'][ann['start_offset']:ann['end_offset']]
+                term_d = {'term': annotated_term, 'start_offset': ann['start_offset'], 'end_offset': ann['end_offset']}
                 if ann['user'] == 5:
-                    user_5_labels.append(annotated_term)
+                    user_5_labels.append(term_d)
                 elif ann['user'] == 6:
-                    user_6_labels.append(annotated_term)
+                    user_6_labels.append(term_d)
                 else:
                     print(f"Unknown annotation! {ann}")
             all_user_5_labels.append(user_5_labels)

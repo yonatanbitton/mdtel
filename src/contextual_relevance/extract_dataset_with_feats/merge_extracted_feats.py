@@ -53,8 +53,8 @@ def handle_community(community):
 
 def main():
     handle_community('sclerosis')
-    # handle_community('diabetes')
-    # handle_community('depression')
+    handle_community('diabetes')
+    handle_community('depression')
 
     print("Done")
 

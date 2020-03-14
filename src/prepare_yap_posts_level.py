@@ -20,6 +20,7 @@ ip = '127.0.0.1:8000'
 general_count = 0
 
 def parse_community(community):
+    print(f"Handling community: {community}")
     comm_dir = raw_tokenized_dir + os.sep + community
     all_df_rows = []
     for fname in os.listdir(comm_dir):
@@ -28,6 +29,7 @@ def parse_community(community):
         handle_fpath(fpath, f_name_str, all_df_rows, community)
 
     comm_df = pd.DataFrame(all_df_rows, columns=list(all_df_rows[0].keys()))
+    comm_df['words_and_lemmas'] = comm_df['words_and_lemmas'].apply(lambda x: json.dumps(x, ensure_ascii=False))
     comm_df.to_excel(output_dir + os.sep + community + "_posts.xlsx", index=False)
     print(f"Finished with community {community}")
 
@@ -50,7 +52,9 @@ def get_yap_features(post_example, community, file_name):
     dep_tree.to_csv(dep_tree_file_path, encoding='utf-8-sig', index=False)
     md_lattice.to_csv(md_lattice_file_path, encoding='utf-8-sig', index=False)
 
-    yap_d = {'tokenized_text': tokenized_text, 'segmented_text': segmented_text, 'lemmas': lemmas}
+    words_and_lemmas = get_all_words_and_lemmas_from_df(dataframes)
+
+    yap_d = {'tokenized_text': tokenized_text, 'segmented_text': segmented_text, 'lemmas': lemmas, 'words_and_lemmas': words_and_lemmas}
 
     return yap_d
 
