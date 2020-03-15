@@ -48,3 +48,9 @@ chemical_or_drug_tuis = [l.split("|")[2] for l in chemical_lines.split("\n") if 
 DISORDER = "Disorder"
 CHEMICAL_OR_DRUG = "Chemical or drug"
 
+DISORDERS_COL = "Disorders"
+CHEMICAL_OR_DRUGS_COL = "Chemical or drugs"
+
+SIMILARITY_THRESHOLD = 0.88
+
+

@@ -1,3 +1,4 @@
+import json
 
 import pandas as pd
 import os
@@ -14,6 +15,7 @@ extracted_training_dataset_dir = data_dir + r"contextual_relevance\extracted_tra
 
 def handle_community(community):
     initialized_training_dataset = pd.read_csv(initialized_training_dataset_dir + os.sep + community + ".csv")
+    initialized_training_dataset['txt_words'] = initialized_training_dataset['txt_words'].apply(json.loads)
     yap_features = pd.read_csv(yap_features_path + os.sep + community + "_output.csv")
     count_features = pd.read_csv(count_features_path + os.sep + community + "_output.csv")
     lm_features = pd.read_csv(lm_features_path + os.sep + community + "_output.csv")
@@ -21,8 +23,7 @@ def handle_community(community):
 
     column_lengths = len(initialized_training_dataset.columns), len(count_features.columns), len(lm_features.columns), len(relatedness_features.columns)
 
-    joint_cols = ['cand_match', 'umls_match', 'file_name', 'tokenized_text', 'occurences_indexes', 'match_10_window',
-                  'match_3_window', 'match_6_window', 'match_idx', 'row_idx']
+    joint_cols = list(initialized_training_dataset.columns)
     count_cols = ['match_count', 'match_freq']
     lm_cols = ['pred_10_window', 'pred_6_window', 'pred_3_window', 'pred_2_window']
     relatedness_cols = ['relatedness']
@@ -39,6 +40,7 @@ def handle_community(community):
         r3 = lm_features.iloc[idx]
         r4 = relatedness_features.iloc[idx]
         r5 = yap_features.iloc[idx]
+        remove_redundant_cols(r2, r3, r4, r5)
         merged_d = {**dict(r1), **dict(r2), **dict(r3), **dict(r4), **dict(r5)}
         assert r1['cand_match'] == r2['cand_match'] == r3['cand_match'] == r4['cand_match'] == r5['cand_match'] and \
                r1['umls_match'] == r2['umls_match'] == r3['umls_match'] == r4['umls_match'] == r5['umls_match'] and \
@@ -47,9 +49,18 @@ def handle_community(community):
         all_rows.append(merged_d)
 
     result = pd.DataFrame(all_rows, columns=all_final_cols)
-    print(f"shapes before: {result.shape}, column lengths: {column_lengths}, joint cols: {len(joint_cols)}, new_res: {len(result.columns)}")
+    # for c in ['all_match_occ', 'txt_words', 'occurences_indexes_in_txt_words']:
+    #     result[c] = result[c].apply(lambda x: json.dumps(x, ensure_ascii=False))
     result.to_csv(extracted_training_dataset_dir + os.sep + community + ".csv", index=False, encoding='utf-8-sig')
     print(f"merged written to file {extracted_training_dataset_dir + os.sep + community}")
+
+
+def remove_redundant_cols(r2, r3, r4, r5):
+    for r in [r2, r3, r4, r5]:
+        for c in ['all_match_occ', 'txt_words', 'occurences_indexes']:
+            if c in r:
+                del r[c]
+
 
 def main():
     handle_community('sclerosis')

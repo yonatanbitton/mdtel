@@ -78,28 +78,31 @@ class WindowsMaker:
             if str(row['tokenized_text']) == 'nan':
                 continue
             txt, txt_words = self.get_txt_words(row)
-            word_umls_matches, word_cand_matches = self.get_matches_from_high_recall_list(row)
 
-            for umls_match, cand_match in zip(word_umls_matches, word_cand_matches):
+            for match in row['matches_found']:
                 # get the matches indexes in text
-                occurences_indexes = self.get_all_occurences_of_match_in_text(umls_match, txt_words)
+                occurences_indexes_in_txt_words = self.get_all_occurences_of_match_in_text(match['umls_match'], txt_words)
 
                 # create windows
-                for match_occurence_idx_in_txt_words in occurences_indexes:
+                for match_occurence_idx_in_txt_words in occurences_indexes_in_txt_words:
                     match_3_window, match_6_window, match_10_window = self.get_windows_for_match(txt_words, match_occurence_idx_in_txt_words)
 
-                    match_data = {'umls_match': umls_match, 'cand_match': cand_match, 'file_name': row['file_name'],
-                                  'row_idx': row_idx,
+                    match_data = {'umls_match': match['umls_match'], 'cand_match': match['cand_match'],
+                                  'file_name': row['file_name'], 'row_idx': row_idx,
                                   'match_occurence_idx_in_txt_words': match_occurence_idx_in_txt_words,
-                                  'occurences_indexes': occurences_indexes,
-                                  'txt_words': json.dumps(txt_words, ensure_ascii=False),
+                                  'occurences_indexes_in_txt_words': occurences_indexes_in_txt_words,
+                                  'txt_words': txt_words,
                                   'tokenized_text': txt, 'match_3_window': match_3_window,
-                                  'match_6_window': match_6_window, 'match_10_window': match_10_window}
+                                  'match_6_window': match_6_window, 'match_10_window': match_10_window,
+                                  'match_tui': match['match_tui'], 'semantic_type': match['semantic_type'],
+                                  'all_match_occ': match['all_match_occ'], 'curr_occurence_offset': match['curr_occurence_offset']}
                     train_instances.append(match_data)
 
         df = pd.DataFrame(train_instances)
         print(f"WindowsMaker finished with community. Got cols: {df.columns}")
         print(df.head(3))
+        for c in ['all_match_occ', 'txt_words']:
+            df[c] = df[c].apply(lambda x: json.dumps(x, ensure_ascii=False))
         return df
 
     def get_txt_words(self, row):
@@ -108,13 +111,6 @@ class WindowsMaker:
         txt_words = txt.split(" ")
         txt_words = [x.lower() if word_is_english(x) else x for x in txt_words]
         return txt, txt_words
-
-    def get_matches_from_high_recall_list(self, row):
-        matches_found = row['matches_found']
-        word_umls_matches = [m['umls_match'] for m in matches_found]
-        word_cand_matches = [m['cand_match'] for m in matches_found]
-        return word_umls_matches, word_cand_matches
-
 
 def handle_community(community):
     print(f"community: {community}")

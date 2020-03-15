@@ -7,7 +7,7 @@ import sys
 module_path = os.path.abspath(os.path.join('..', '..', '..', '..', os.getcwd()))
 sys.path.append(module_path)
 
-from config import data_dir, DEBUG, FINAL_LABELS_COL
+from config import data_dir, DEBUG, FINAL_LABELS_COL, SIMILARITY_THRESHOLD
 
 # labels_dir = data_dir + r"manual_labeled"
 labels_dir = data_dir + r'manual_labeled_v2\doccano'
@@ -115,7 +115,6 @@ def get_data_from_annotation_file(comm_lines, posts_df):
     labels_df['user_5_labels'] = all_user_5_labels
     labels_df['user_6_labels'] = all_user_6_labels
 
-
     print(f"len(all_relevant_filenames): {len(all_relevant_filenames)}, "
           f"len(set(all_relevant_filenames)): {len(set(all_relevant_filenames))}")
     return labels_df
@@ -142,7 +141,7 @@ def get_best_match(relevant_labeled_df, row, final_label_col):
         sim1 = words_similarity(w, row['cand_match'])
         sim2 = words_similarity(w, row['umls_match'])
         higher_sim = max(sim1, sim2)
-        if higher_sim > 0.88:
+        if higher_sim > SIMILARITY_THRESHOLD:
             best_match_sim = higher_sim
             best_match = w
     return best_match, best_match_sim

@@ -8,7 +8,7 @@ import pandas as pd
 module_path = os.path.abspath(os.path.join('..', '..', '..', os.getcwd()))
 sys.path.append(module_path)
 
-from config import data_dir
+from config import data_dir, SIMILARITY_THRESHOLD
 
 input_dir = data_dir + r"contextual_relevance\initialized_training_dataset"
 yap_dataframes_dir = data_dir + r"high_recall_matcher\posts\lemlda\yap_dataframes"
@@ -18,8 +18,6 @@ md_lattices_dir = yap_dataframes_dir + os.sep + "md_lattices"
 output_dir = data_dir + r"contextual_relevance\yap_features"
 
 number_of_sorts = 0
-
-SIMILARITY_THRESHOLD = 0.86
 
 def handle_community(community):
     print(f"community: {community}")
@@ -76,12 +74,12 @@ def get_correct_row_from_df(df, cand_match, umls_match, row):
     cand_match_parts = cand_match.split(" ")
     match_len = len(cand_match_parts)
     cand_match_first_term = cand_match_parts[0]
-    all_possible_word_rows = df[df['word'].apply(lambda x: words_similarity(x, cand_match_first_term) > 0.88)]
+    all_possible_word_rows = df[df['word'].apply(lambda x: words_similarity(x, cand_match_first_term) > SIMILARITY_THRESHOLD)]
 
     if len(row['occurences_indexes']) == len(all_possible_word_rows):
         correct_row = all_possible_word_rows.iloc[number_of_match]
     else:
-        all_possible_lemma_rows = df[df['lemma'].apply(lambda x: words_similarity(x, cand_match_first_term) > 0.88)]
+        all_possible_lemma_rows = df[df['lemma'].apply(lambda x: words_similarity(x, cand_match_first_term) > SIMILARITY_THRESHOLD)]
         if len(row['occurences_indexes']) == len(all_possible_lemma_rows):
             correct_row = all_possible_lemma_rows.iloc[number_of_match]
         else:
@@ -111,7 +109,7 @@ def try_to_find_with_next_term(all_possible_word_rows, cand_match, df, match_len
     for idx in all_possible_word_rows.index:
         term_with_next_word = " ".join(df['word'].loc[idx: idx + match_len - 1])
         sim = words_similarity(term_with_next_word, cand_match)
-        if sim > 0.88 and sim > best_sim:
+        if sim > SIMILARITY_THRESHOLD and sim > best_sim:
             best_sim = sim
             best_idx_with_next_word = idx
     return best_idx_with_next_word
