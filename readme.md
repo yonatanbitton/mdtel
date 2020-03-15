@@ -14,9 +14,8 @@ Here is a link to the data directory: https://drive.google.com/file/d/17JTxutH15
 
 **All the forum data is publicly available at www.camoni.co.il**
 
-![image](presentations/flow_diagram.jpg){:class="img-responsive"}
-![image](presentations/rebif_example_smaller.png){:height="700px" width="400px"}
-
+![image](presentations/flow_diagram.jpg)
+![image](presentations/rebif_example_smaller.png)
 
 ## Setup   
 
