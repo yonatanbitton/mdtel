@@ -76,14 +76,14 @@ def print_comm_data(community):
     for idx in range(len(all_user_5_labels)):
         rest_lst_user_5 = all_user_5_labels[idx:]
         rest_lst_user_6 = all_user_6_labels[idx:]
-        # if all(x==[] for x in rest_lst_user_5):
-        #     print(f"comm: {community}, last tagged 5 : {idx}")
-        #     last_relevant_idx_user_5 = idx
-        #     break
-        if all(x==[] for x in rest_lst_user_6):
-            print(f"comm: {community}, last tagged 6: {idx}")
-            last_relevant_idx_user_6 = idx
+        if all(x==[] for x in rest_lst_user_5):
+            print(f"comm: {community}, last tagged 5 : {idx}")
+            last_relevant_idx_user_5 = idx
             break
+        # if all(x==[] for x in rest_lst_user_6):
+        #     print(f"comm: {community}, last tagged 6: {idx}")
+        #     last_relevant_idx_user_6 = idx
+        #     break
 
     # if last_relevant_idx != -1:
     #     labels_df = labels_df.head(last_relevant_idx)

@@ -17,7 +17,7 @@ posts_dir = data_dir + r"high_recall_matcher\posts\lemlda"
 output_dir = data_dir + r"contextual_relevance\training_dataset_with_labels"
 labels_df_output_dir = data_dir + r'manual_labeled_v2\labels_dataframes'
 
-ANNOTATIONS_LENGTH = 225
+annotations_length_per_user = {'user_5_labels': {'sclerosis': 407, 'diabetes': 516, 'depression': 376}}
 
 if DEBUG:
     print(f"*** DEBUG MODE: Taking 100 rows only ***")
@@ -26,17 +26,19 @@ def handle_community(community):
     print(f"community: {community}")
     with open(labels_dir + os.sep + community + "_export.json", encoding='utf-8') as f:
         comm_lines = [json.loads(x) for x in f.readlines()]
-        comm_lines = comm_lines[:ANNOTATIONS_LENGTH]
+        comm_lines = comm_lines[:annotations_length_per_user[FINAL_LABELS_COL][community]]
 
     extract_feats_df = pd.read_csv(extracted_feats_dir + os.sep + community + ".csv")
     print(f"Original Shape: {extract_feats_df.shape}")
 
     posts_df = pd.read_excel(posts_dir + os.sep + community + "_posts.xlsx")
 
-    labels_df, all_relevant_filenames = get_data_from_annotation_file(comm_lines, posts_df)
-    relevant_feats_df = extract_feats_df[extract_feats_df['file_name'].isin(all_relevant_filenames)]
-    print(f"extract_feats_df shape: {extract_feats_df.shape}, relevant_feats_df.shape: {relevant_feats_df.shape}")
+    labels_df = get_data_from_annotation_file(comm_lines, posts_df)
 
+    labels_df = labels_df[labels_df[FINAL_LABELS_COL].apply(lambda x: len(x) > 0)]
+
+    relevant_feats_df = extract_feats_df[extract_feats_df['file_name'].isin(list(labels_df['file_name'].values))]
+    print(f"extract_feats_df shape: {extract_feats_df.shape}, relevant_feats_df.shape: {relevant_feats_df.shape}")
 
     all_labels = []
     for r_idx, row in relevant_feats_df.iterrows():
@@ -116,7 +118,7 @@ def get_data_from_annotation_file(comm_lines, posts_df):
 
     print(f"len(all_relevant_filenames): {len(all_relevant_filenames)}, "
           f"len(set(all_relevant_filenames)): {len(set(all_relevant_filenames))}")
-    return labels_df, all_relevant_filenames
+    return labels_df
 
 
 def remove_bad_char_and_lower(w : str):
