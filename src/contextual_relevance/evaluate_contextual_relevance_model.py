@@ -1,9 +1,8 @@
 import argparse
 import json
 import os
-import pickle
 import sys
-from collections import Counter
+from statistics import mode
 
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
@@ -15,7 +14,7 @@ from high_recall_matcher_posts_level import words_similarity
 module_path = os.path.abspath(os.path.join('..', '..', os.getcwd()))
 sys.path.append(module_path)
 
-add_extra_fns = False
+add_extra_fns = True
 
 def evaluate_community(community):
     print(f"*** community: {community} ***")
@@ -79,51 +78,53 @@ def find_best_threshold_for_semantic_type(community, community_df, semantic_type
 
 def get_number_of_items_labeled_as_positive_but_wasnt_at_high_recall_list(community, community_df):
     # Adding misses of high recall matcher
-    all_high_recall_matches = community_df['cand_match'].values
-    labels_df = pd.read_csv(labels_dir + os.sep + community + "_labeled.csv")
+    labels_df = pd.read_csv(labels_dir + os.sep + community + "_labels.csv")
     labels_df[FINAL_LABELS_COL] = labels_df[FINAL_LABELS_COL].apply(json.loads)
 
-    labels_df = add_semantic_type_cols(labels_df)
+    labels_df = add_semantic_type_cols(labels_df, community)
 
-    disorders_number_extra_fns = get_misclassifications_numbers_for_semantic_type(
-        all_high_recall_matches, labels_df, DISORDERS_COL)
+    chemical_or_drugs_extra_fns = get_misclassifications_numbers_for_semantic_type(community_df, labels_df, CHEMICAL_OR_DRUGS_COL, CHEMICAL_OR_DRUG)
+    disorders_number_extra_fns = get_misclassifications_numbers_for_semantic_type(community_df, labels_df, DISORDERS_COL, DISORDER)
 
-    chemical_or_drugs_extra_fns = get_misclassifications_numbers_for_semantic_type(
-        all_high_recall_matches, labels_df, DISORDERS_COL)
 
     return disorders_number_extra_fns, chemical_or_drugs_extra_fns
 
 
-def get_misclassifications_numbers_for_semantic_type(all_high_recall_matches, labels_df, annotated_col):
+def get_misclassifications_numbers_for_semantic_type(community_df, labels_df, annotated_col, semantic_type):
+
+    semantic_type_all_high_recall_matches = community_df[community_df['semantic_type'] == semantic_type]['cand_match'].values
+
     all_positive_labeled_terms = []
     for lst in labels_df[annotated_col]:
         all_positive_labeled_terms += lst
     all_positive_labeled_terms = [x for x in all_positive_labeled_terms if
                                   len(x) > 3]  # We don't try to find terms shorter then 3
-    missed_items_strict = [x for x in all_positive_labeled_terms if x not in all_high_recall_matches]
-    missed_items = difference_with_similarity(all_positive_labeled_terms, all_high_recall_matches)
+    # items_in_high_recall_but_not_labeled = difference_with_similarity_or_sub_term(semantic_type_all_high_recall_matches,
+    #                                                                   all_positive_labeled_terms)
+    # print(f"{annotated_col} items_in_high_recall_but_not_labeled: {len(items_in_high_recall_but_not_labeled)},"
+    #       f" {len(set(items_in_high_recall_but_not_labeled))}")
+    # print(set(items_in_high_recall_but_not_labeled))
+
+
+    missed_items_strict = [x for x in all_positive_labeled_terms if x not in semantic_type_all_high_recall_matches]
+    missed_items = difference_with_similarity(all_positive_labeled_terms, semantic_type_all_high_recall_matches)
     print(f"{annotated_col} missed_items_strict {len(missed_items_strict)}")
-    print(missed_items_strict)
-    print('\n')
     print(f"{annotated_col} missed_items {len(missed_items)}, set length: {len(set(missed_items))}")
-    print(set(missed_items))
-    print('\n')
     number_of_items_labeled_as_positive_but_wasnt_at_high_recall_list = len(missed_items)
-    items_in_high_recall_but_not_labeled = difference_with_similarity(all_high_recall_matches,
-                                                                      all_positive_labeled_terms)
-    print(f"{annotated_col} items_in_high_recall_but_not_labeled: {len(items_in_high_recall_but_not_labeled)},"
-          f" {len(set(items_in_high_recall_but_not_labeled))}")
-    print(set(items_in_high_recall_but_not_labeled))
+    # number_of_items_labeled_as_positive_but_wasnt_at_high_recall_list = 0 # TODO - update
     return number_of_items_labeled_as_positive_but_wasnt_at_high_recall_list
 
 
-def add_semantic_type_cols(labels_df):
-    all_labels_counts = labels_df[FINAL_LABELS_COL].apply(lambda lst: Counter([t['label'] for t in lst])).sum()
-    if len(all_labels_counts) > 2:
-        raise Exception("Unrecognized label")
-    most_common = all_labels_counts.most_common(2)
-    disorders_number = most_common[0][0]
-    chemicals_or_drug_number = most_common[1][0]
+def add_semantic_type_cols(labels_df, community):
+    comm_to_heb = {'diabetes': 'סוכרת', 'sclerosis': 'טרשת נפוצה', 'depression': 'דיכאון'}
+    labels_df[FINAL_LABELS_COL].apply(lambda lst: [m for m in lst if m['term'] == comm_to_heb[community]])
+    labels_df_community_name = labels_df[FINAL_LABELS_COL].apply(lambda lst: [m for m in lst if m['term'] == comm_to_heb[community]])
+    community_name_user_values = [lst[0]['label'] for lst in labels_df_community_name.values if lst != []]
+    print(f"comm label names")
+    disorders_number = mode(community_name_user_values)
+    different_num_series = labels_df[FINAL_LABELS_COL].apply(lambda lst: [m for m in lst if m['label'] != disorders_number])
+    chemicals_or_drug_number = mode([lst[0]['label'] for lst in different_num_series.values if lst != []])
+    print(f"disorders_number: {disorders_number}, community_name_user_values: {community_name_user_values}, chemicals_or_drug_number: {chemicals_or_drug_number}")
     semantic_type_to_number_dict = {DISORDER: disorders_number, CHEMICAL_OR_DRUG: chemicals_or_drug_number}
     labels_df[DISORDERS_COL] = labels_df[FINAL_LABELS_COL].apply(
         lambda lst: [t['term'] for t in lst if t['label'] == semantic_type_to_number_dict[DISORDER]])
@@ -131,17 +132,44 @@ def add_semantic_type_cols(labels_df):
         lambda lst: [t['term'] for t in lst if t['label'] == semantic_type_to_number_dict[CHEMICAL_OR_DRUG]])
     return labels_df
 
-def difference_with_similarity(all_positive_labeled_terms, all_high_recall_matches):
+def difference_with_similarity(l1, l2):
     missed_items = []
-    for x in all_positive_labeled_terms:
-        x_in_high_recall_match = False
-        for y in all_high_recall_matches:
+    for x in l1:
+        x_in_l2 = False
+        for y in l2:
             if words_similarity(x, y) > SIMILARITY_THRESHOLD:
-                x_in_high_recall_match = True
+                x_in_l2 = True
                 break
-        if not x_in_high_recall_match:
+        if not x_in_l2:
             missed_items.append(x)
     return missed_items
+
+
+def subterm_is_inside(x, y):
+    x_len = len(x.split(" "))
+    y_len = len(y.split(" "))
+    if y_len > x_len:
+        y_same_length_as_x = " ".join(y.split(" ")[:x_len])
+        if words_similarity(x, y_same_length_as_x) > SIMILARITY_THRESHOLD:
+            return True
+    return False
+
+
+def difference_with_similarity_or_sub_term(semantic_type_all_high_recall_matches, all_positive_labeled_terms):
+    missed_items = []
+    for x in semantic_type_all_high_recall_matches:
+        if x == 'סטרואיד' in x:
+            print("HERE!")
+        x_in_all_positive_labeled_terms = x in all_positive_labeled_terms
+        if not x_in_all_positive_labeled_terms:
+            for y in all_positive_labeled_terms:
+                if words_similarity(x, y) > SIMILARITY_THRESHOLD or subterm_is_inside(x, y):
+                    x_in_all_positive_labeled_terms = True
+                    break
+        if not x_in_all_positive_labeled_terms:
+            missed_items.append(x)
+    return missed_items
+
 
 
 def get_results_for_threshold(community, community_df, n_estimators, selected_feats, test_size, threshold, extra_fns):
@@ -180,16 +208,17 @@ def get_results_for_threshold(community, community_df, n_estimators, selected_fe
 def get_confusion_matrix_examples(X_test, community_df, hard_y_pred, y_test):
     confusion_matrix_examples = {'TP': [], 'TN': [], 'FP': [], 'FN': []}
     for idx, (match_idx, pred, real_ans) in enumerate(zip(list(X_test.index), hard_y_pred, y_test)):
+        item_to_add = community_df.loc[match_idx]['cand_match']
         if pred == real_ans:
             if pred == 1 and real_ans == 1:
-                confusion_matrix_examples['TP'].append(community_df.loc[match_idx]['cand_match'])
+                confusion_matrix_examples['TP'].append(item_to_add)
             elif pred == 0 and real_ans == 0:
-                confusion_matrix_examples['TN'].append(community_df.loc[match_idx]['cand_match'])
+                confusion_matrix_examples['TN'].append(item_to_add)
         else:
             if pred == 1 and real_ans == 0:
-                confusion_matrix_examples['FP'].append(community_df.loc[match_idx]['cand_match'])
+                confusion_matrix_examples['FP'].append(item_to_add)
             elif pred == 0 and real_ans == 1:
-                confusion_matrix_examples['FN'].append(community_df.loc[match_idx]['cand_match'])
+                confusion_matrix_examples['FN'].append(item_to_add)
     return confusion_matrix_examples
 
 def get_measures_for_y_test_and_hard_y_pred(hard_y_pred, y_pred, y_test):
@@ -231,7 +260,8 @@ if __name__ == '__main__':
 
     training_dataset_dir = data_dir + r"contextual_relevance\training_dataset_with_labels"
     output_models_dir = data_dir + r"contextual_relevance\output_models"
-    labels_dir = data_dir + r'manual_labeled_v2\labels_dataframes'
+    # labels_dir = data_dir + r'manual_labeled_v2\labels_dataframes'
+    labels_dir = data_dir + r'manual_labeled_v2\doccano\merged_output'
 
     main()
 

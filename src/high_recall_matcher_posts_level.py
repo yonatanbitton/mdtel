@@ -22,8 +22,6 @@ umls_df_data_path = data_dir + r"high_recall_matcher\HEB_TO_ENG_DISORDERS_CHEMIC
 
 output_dir = data_dir + r"high_recall_matcher\output"
 
-# SINGLE_WORD_SIMILARITY_THRESHOLD = 0.85
-# MULTI_WORD_SIMILARITY_THRESHOLD = 0.80 #single=85-multi=87,
 LOW_SINGLE_WORD_SIMILARITY_THRESHOLD = 0.80
 UP_SINGLE_WORD_SIMILARITY_THRESHOLD = 0.85
 LOW_MULTI_WORD_SIMILARITY_THRESHOLD = 0.85
@@ -46,12 +44,6 @@ else:
 number_of_not_exact_matches = 0
 number_of_lemma_matches = 0
 
-def get_data(chosen_community):
-    community_df = pd.read_excel(input_dir + os.sep + chosen_community + "_posts.xlsx")
-    community_df['words_and_lemmas'] = community_df['words_and_lemmas'].apply(lambda x: json.loads(x) if str(x) != 'nan' else 'nan')
-    if DEBUG:
-        community_df = community_df.head(20)
-    return community_df
 
 def word_is_english(word):
    for c in word:
@@ -150,9 +142,9 @@ def main():
     heb_searcher = Searcher(heb_db, CosineMeasure())
     eng_searcher = Searcher(eng_db, CosineMeasure())
 
-    handle_community(SCLEROSIS, heb_searcher, eng_searcher, umls_data)
+    # handle_community(SCLEROSIS, heb_searcher, eng_searcher, umls_data)
     # handle_community(DIABETES, heb_searcher, eng_searcher, umls_data)
-    # handle_community(DEPRESSION, heb_searcher, eng_searcher, umls_data)
+    handle_community(DEPRESSION, heb_searcher, eng_searcher, umls_data)
 
     print("Done")
 
@@ -207,6 +199,30 @@ def get_umls_data():
         eng_db.add(lower_eng_w)
 
     return heb_db, eng_db, umls_data
+
+
+def get_data(chosen_community):
+    community_df = pd.read_excel(input_dir + os.sep + chosen_community + "_posts.xlsx")
+    community_df['words_and_lemmas'] = community_df['words_and_lemmas'].apply(lambda x: json.loads(x) if str(x) != 'nan' else 'nan')
+    # if DEBUG:
+    #     community_df = community_df.head(20)
+
+    # Taking only posts that have labels (Not predicting posts without labels to measure performance)
+    community_df = take_only_posts_which_has_labels(chosen_community, community_df)
+
+    return community_df
+
+
+def take_only_posts_which_has_labels(chosen_community, community_df):
+    labels_dir = data_dir + r'manual_labeled_v2\doccano\merged_output'
+    labels_df = pd.read_csv(labels_dir + os.sep + chosen_community + "_labels.csv")
+    all_labeled_texts = [x.strip() for x in list(labels_df['text'].values)]
+    # all_labeled_tokenized_texts = list(labels_df['tokenized_text'].values)
+    number_of_posts_needed = {'sclerosis': 265, 'diabetes': 266, 'depression': 271}
+    community_df = community_df[community_df['post_txt'].apply(lambda x: x.strip() in all_labeled_texts)]
+    print(f"Number of posts: {len(community_df)}, needed: {number_of_posts_needed[chosen_community]}")
+    assert abs(len(community_df) - number_of_posts_needed[chosen_community]) < 3  # Can accept small difference
+    return community_df
 
 
 def handle_community(chosen_community, heb_searcher, eng_searcher, umls_data):

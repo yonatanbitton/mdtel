@@ -1,7 +1,10 @@
 import os
 
 data_dir = r"E:\mdtel_data\data" + os.sep
-FINAL_LABELS_COL = 'user_5_labels'
+# FINAL_LABELS_COL = 'user_5_labels'
+# FINAL_LABELS_COL = 'user_6_labels'
+FINAL_LABELS_COL = 'merged_inner_and_outer'
+
 DEBUG = False
 
 disorder_lines = """

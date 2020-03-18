@@ -13,9 +13,9 @@ def annotated_by_user(annotations, user_num):
     return False
 
 def main():
-    print_comm_data(community='sclerosis')
-    print_comm_data(community='diabetes')
-    print_comm_data(community='depression')
+    # print_comm_data(community='sclerosis')
+    # print_comm_data(community='diabetes')
+    print_comm_data(community='depression_merged')
     print("Done")
 
 
@@ -28,7 +28,8 @@ def print_comm_data(community):
     all_line_texts = []
     all_user_5_labels = []
     all_user_6_labels = []
-
+    in_user_6_but_not_in_5 = 0
+    in_user_5_but_not_in_6 = 0
 
     for l in lines:
         # if l['annotations'] == []:
@@ -60,10 +61,19 @@ def print_comm_data(community):
                     user_6_labels.append(annotated_term)
                 else:
                     print(f"Unknown annotation! {ann}")
+            if user_5_labels != [] and user_6_labels == []:
+                in_user_5_but_not_in_6 += 1
+            if user_5_labels == [] and user_6_labels != []:
+                in_user_6_but_not_in_5 += 1
             all_user_5_labels.append(user_5_labels)
             all_user_6_labels.append(user_6_labels)
         # if user_6_in:
         #     print(annotations)
+
+    print("\n\n")
+    print(f'lines_with_user_5: {lines_with_user_5}, lines_with_user_6: {lines_with_user_6}, lines_with_both_user: {lines_with_both_user}')
+    print("\n\n")
+    print(f"in_user_5_but_not_in_6: {in_user_5_but_not_in_6}, in_user_6_but_not_in_5: {in_user_6_but_not_in_5}")
 
     labels_df = pd.DataFrame()
     labels_df['text'] = all_line_texts
@@ -76,15 +86,16 @@ def print_comm_data(community):
     for idx in range(len(all_user_5_labels)):
         rest_lst_user_5 = all_user_5_labels[idx:]
         rest_lst_user_6 = all_user_6_labels[idx:]
-        if all(x==[] for x in rest_lst_user_5):
-            print(f"comm: {community}, last tagged 5 : {idx}")
+        if all(x==[] for x in rest_lst_user_5) and last_relevant_idx_user_5 == -1:
+            # print(f"comm: {community}, last tagged 5 : {idx}")
             last_relevant_idx_user_5 = idx
-            break
-        # if all(x==[] for x in rest_lst_user_6):
-        #     print(f"comm: {community}, last tagged 6: {idx}")
-        #     last_relevant_idx_user_6 = idx
-        #     break
-
+            # break
+        if all(x==[] for x in rest_lst_user_6) and last_relevant_idx_user_6 == -1:
+            # print(f"comm: {community}, last tagged 6: {idx}")
+            last_relevant_idx_user_6 = idx
+            # break
+    print(f"comm: {community}, last tagged 5: {last_relevant_idx_user_5}, last tagged 6: {last_relevant_idx_user_6}")
+    return
     # if last_relevant_idx != -1:
     #     labels_df = labels_df.head(last_relevant_idx)
 
