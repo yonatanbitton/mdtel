@@ -1,5 +1,6 @@
 import json
 import os
+from copy import deepcopy
 
 import pandas as pd
 
@@ -8,6 +9,7 @@ from high_recall_matcher_posts_level import words_similarity
 
 labels_dir = data_dir + r'manual_labeled_v2\doccano'
 labels_output = labels_dir + os.sep + "merged_output"
+measuring_kappa_dir = labels_dir + os.sep + "csv_files" + os.sep + "measuring_kappa"
 posts_dir = data_dir + r"high_recall_matcher\posts\lemlda"
 
 SIMILARITY_THRESHOLD = 0.85
@@ -275,6 +277,12 @@ def build_labels_df(comm_lines, community, posts_df):
     labels_df['tokenized_text'] = all_line_tokenized_texts
 
     labels_df = labels_df[labels_df.apply(lambda row: row_annotated_by_at_least_one_user(row), axis=1)]
+
+    labels_df_copy = deepcopy(labels_df)
+    for c in ['user_5_labels', 'user_6_labels']:
+        labels_df_copy[c] = labels_df_copy[c].apply(lambda x: json.dumps(x, ensure_ascii=False))
+    labels_df_copy.to_csv(measuring_kappa_dir + os.sep + community + "_both_annotators.csv", index=False, encoding='utf-8-sig')
+
     annotated_by_both_users = labels_df[labels_df.apply(lambda row: row_annotated_by_both_users(row), axis=1)]
     user_5_but_not_6 = labels_df[labels_df.apply(lambda row: user_X_but_not_Y(row, 5, 6), axis=1)]
     user_6_but_not_5 = labels_df[labels_df.apply(lambda row: user_X_but_not_Y(row, 6, 5), axis=1)]

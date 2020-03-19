@@ -142,9 +142,9 @@ def main():
     heb_searcher = Searcher(heb_db, CosineMeasure())
     eng_searcher = Searcher(eng_db, CosineMeasure())
 
-    # handle_community(SCLEROSIS, heb_searcher, eng_searcher, umls_data)
+    handle_community(SCLEROSIS, heb_searcher, eng_searcher, umls_data)
     # handle_community(DIABETES, heb_searcher, eng_searcher, umls_data)
-    handle_community(DEPRESSION, heb_searcher, eng_searcher, umls_data)
+    # handle_community(DEPRESSION, heb_searcher, eng_searcher, umls_data)
 
     print("Done")
 
@@ -232,13 +232,13 @@ def handle_community(chosen_community, heb_searcher, eng_searcher, umls_data):
 
     number_of_posts = len(community_df)
 
-    for row_idx, row in community_df.iterrows():
+    for idx, (row_idx, row) in enumerate(community_df.iterrows()):
 
         msg_matches_found = get_english_and_hebrew_matches(eng_searcher, heb_searcher, row, umls_data)
 
         all_matches_found.append(json.dumps(msg_matches_found, ensure_ascii=False))
 
-        print_stats(row_idx, row, msg_matches_found, number_of_posts)
+        print_stats(idx, row, msg_matches_found, number_of_posts)
 
     community_df['matches_found'] = all_matches_found
 
