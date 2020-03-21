@@ -43,7 +43,7 @@ else:
 
 number_of_not_exact_matches = 0
 number_of_lemma_matches = 0
-
+number_of_lemma_matches_without_occ = 0
 
 def word_is_english(word):
    for c in word:
@@ -75,6 +75,8 @@ def find_umls_match_fast(msg_txt, searcher, row, msg_key_lang):
             low_similarity_threshold = LOW_SINGLE_WORD_SIMILARITY_THRESHOLD if i == 1 else LOW_MULTI_WORD_SIMILARITY_THRESHOLD
             up_similarity_threshold = UP_SINGLE_WORD_SIMILARITY_THRESHOLD if i == 1 else UP_MULTI_WORD_SIMILARITY_THRESHOLD
             cand_term = " ".join(gram[:i])
+            if term_is_exception(i, cand_term):
+                continue
             search_result = searcher.ranked_search(cand_term, low_similarity_threshold)
             if search_result != []:
                 cosine_sim, umls_match = search_result[0]  # Cosine-Sim. I can demand another sim
@@ -91,12 +93,32 @@ def find_umls_match_fast(msg_txt, searcher, row, msg_key_lang):
 
 
 def get_cand_occ_in_text(all_matches_found, cand_term, msg_key_lang, row):
-    cand_match_occurence_in_txt = cand_term
     if msg_key_lang == 'lemmas':
-        curr_occurence_offset, all_match_occ = "lemma", "lemma"
+        all_match_occ, cand_match_occurence_in_txt, curr_occurence_offset = get_occ_in_lemma_case(all_matches_found,
+                                                                                                  cand_term,
+                                                                                                  msg_key_lang, row)
     else:
+        cand_match_occurence_in_txt = cand_term
         curr_occurence_offset, all_match_occ = find_occurence_offset(all_matches_found, cand_match_occurence_in_txt,
                                                                      row, msg_key_lang)
+    return all_match_occ, cand_match_occurence_in_txt, curr_occurence_offset
+
+
+def term_is_exception(i, cand_term):
+    return i == 1 and cand_term in general_exceptions and len(cand_term) in [4, 7]
+
+def get_occ_in_lemma_case(all_matches_found, cand_term, msg_key_lang, row):
+    cand_match_occurence_in_txt, curr_occurence_offset, all_match_occ = None, None, None
+    for l, w in [x.split(" ") for x in row['words_and_lemmas']]:
+        if cand_term == l:
+            cand_match_occurence_in_txt = w
+    if cand_match_occurence_in_txt:
+        curr_occurence_offset, all_match_occ = find_occurence_offset(all_matches_found, cand_match_occurence_in_txt,
+                                                                     row, msg_key_lang)
+    if cand_match_occurence_in_txt is None or curr_occurence_offset is None:
+        curr_occurence_offset, all_match_occ = "lemma", "lemma"
+        global number_of_lemma_matches_without_occ
+        number_of_lemma_matches_without_occ += 1
     return all_match_occ, cand_match_occurence_in_txt, curr_occurence_offset
 
 
@@ -142,9 +164,9 @@ def main():
     heb_searcher = Searcher(heb_db, CosineMeasure())
     eng_searcher = Searcher(eng_db, CosineMeasure())
 
-    handle_community(SCLEROSIS, heb_searcher, eng_searcher, umls_data)
+    # handle_community(SCLEROSIS, heb_searcher, eng_searcher, umls_data)
     # handle_community(DIABETES, heb_searcher, eng_searcher, umls_data)
-    # handle_community(DEPRESSION, heb_searcher, eng_searcher, umls_data)
+    handle_community(DEPRESSION, heb_searcher, eng_searcher, umls_data)
 
     print("Done")
 
@@ -175,6 +197,7 @@ def get_umls_data():
     umls_data = pd.read_csv(umls_df_data_path)
     print(f"Got UMLS data at length {len(umls_data)}")
     umls_data = umls_data[~umls_data['STR'].isna()]
+    umls_data = umls_data[umls_data['LAT'].apply(lambda x: x=='ENG' or str(x) == 'nan' or x == ' ')]
 
     # if DEBUG:
     #     umls_data = umls_data.head(10000)
@@ -268,7 +291,7 @@ def get_english_and_hebrew_matches(eng_searcher, heb_searcher, row, umls_data):
 def get_hebrew_matches(heb_searcher, row, umls_data):
     all_hebrew_matches_found = []
     # for hebrew_key in ['tokenized_text', 'segmented_text', 'lemmas']:
-    for hebrew_key in ['tokenized_text', 'lemmas']:
+    for hebrew_key in ['segmented_text', 'tokenized_text', 'lemmas']:
         msg_key_txt = row[hebrew_key]
         matches_found_for_key = find_umls_match_fast(msg_key_txt, heb_searcher, row, hebrew_key)
 
@@ -301,7 +324,7 @@ def list_union(all_hebrew_matches_found, matches_found_for_key, post_key):
 
 def print_stats(idx, row, msg_matches_found, number_of_posts):
     if idx % 100 == 0 and idx > 0:
-        print(f"idx: {idx}, out of: {number_of_posts}, total {round((idx / number_of_posts) * 100, 3)}%, number_of_lemma_matches: {number_of_lemma_matches}")
+        print(f"idx: {idx}, out of: {number_of_posts}, total {round((idx / number_of_posts) * 100, 3)}%, number_of_lemma_matches: {number_of_lemma_matches}, number_of_lemma_matches_without_occ: {number_of_lemma_matches_without_occ}")
     if DEBUG or idx % 100 == 0:
         if msg_matches_found != None and msg_matches_found != []:
             print(row['tokenized_text'])

@@ -14,7 +14,7 @@ from high_recall_matcher_posts_level import words_similarity
 module_path = os.path.abspath(os.path.join('..', '..', os.getcwd()))
 sys.path.append(module_path)
 
-add_extra_fns = True
+add_extra_fns = False
 
 def evaluate_community(community):
     print(f"*** community: {community} ***")
@@ -72,7 +72,7 @@ def find_best_threshold_for_semantic_type(community, community_df, semantic_type
             best_experiment_data = experiment_data
 
     community_score = print_best_experiment_data(community, best_experiment_data, semantic_type)
-
+    exit()
     return community_score
 
 
@@ -124,7 +124,7 @@ def add_semantic_type_cols(labels_df, community):
     disorders_number = mode(community_name_user_values)
     different_num_series = labels_df[FINAL_LABELS_COL].apply(lambda lst: [m for m in lst if m['label'] != disorders_number])
     chemicals_or_drug_number = mode([lst[0]['label'] for lst in different_num_series.values if lst != []])
-    print(f"disorders_number: {disorders_number}, community_name_user_values: {community_name_user_values}, chemicals_or_drug_number: {chemicals_or_drug_number}")
+    print(f"disorders_number: {disorders_number}, community_name_user_values: {community_name_user_values[:5]}, chemicals_or_drug_number: {chemicals_or_drug_number}")
     semantic_type_to_number_dict = {DISORDER: disorders_number, CHEMICAL_OR_DRUG: chemicals_or_drug_number}
     labels_df[DISORDERS_COL] = labels_df[FINAL_LABELS_COL].apply(
         lambda lst: [t['term'] for t in lst if t['label'] == semantic_type_to_number_dict[DISORDER]])

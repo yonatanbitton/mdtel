@@ -1,3 +1,4 @@
+import argparse
 import difflib
 
 from fastai.text import *
@@ -36,7 +37,7 @@ def get_ngram_feats(row, ngram_model, n=2):
 
 
 def handle_community(community, ulmfit_model, ngram_model):
-    print(f"community: {community}")
+    print(f"Language model extractor: community: {community}")
     df = pd.read_csv(initialized_trainig_dataset_dir + os.sep + community + ".csv")
 
     preds_10_window = []
@@ -45,8 +46,8 @@ def handle_community(community, ulmfit_model, ngram_model):
     preds_2_window = []
 
     for row_idx, row in df.iterrows():
-        if row_idx % 10 == 0:
-            print(f"row_idx: {row_idx}, df len: {len(df)}")
+        # if row_idx % 10 == 0:
+        #     print(f"row_idx: {row_idx}, df len: {len(df)}")
         p_2_window = get_ngram_feats(row, ngram_model)
 
         # if p_2_window > 0:
@@ -64,9 +65,9 @@ def handle_community(community, ulmfit_model, ngram_model):
     df['pred_3_window'] = preds_3_window
     df['pred_2_window'] = preds_2_window
     cols = list(df.columns)
-    print(f"cols: {cols}, {len(cols)}")
+    # print(f"cols: {cols}, {len(cols)}")
     fpath = output_dir + os.sep + community + '_output.csv'
-    print(f"Writing file at shape: {df.shape} to fpath: {fpath}")
+    # print(f"Writing file at shape: {df.shape} to fpath: {fpath}")
     df.to_csv(fpath, index=False, encoding='utf-8-sig')
 
 def dd2():
@@ -88,9 +89,9 @@ def get_ngram_model():
     with open(ngram_model_path, 'rb') as f:
         ngram_model = pickle.load(f)
     two_gram_model = ngram_model['two_gram_model']
-    print(dict(two_gram_model[('מתמטיים', 'חדשים')]))
+    # print(dict(two_gram_model[('מתמטיים', 'חדשים')]))
     ngram_model = two_gram_model
-    print(f"Number of grams: {len(ngram_model.keys())}")
+    # print(f"Number of grams: {len(ngram_model.keys())}")
     return ngram_model
 
 
@@ -99,14 +100,14 @@ def get_ulmfit_model():
     TEXT = "במהלך השנה 1948 קמה מדינת ישראל"
     N_WORDS = 40
     N_SENTENCES = 1
-    print("\n".join(ulmfit_model.predict(TEXT, N_WORDS, temperature=0.9) for _ in range(N_SENTENCES)))
+    # print("\n".join(ulmfit_model.predict(TEXT, N_WORDS, temperature=0.9) for _ in range(N_SENTENCES)))
     return ulmfit_model
 
 
 if __name__ == '__main__':
     ulmfit_model, ngram_model = get_language_models()
+
     handle_community('sclerosis', ulmfit_model, ngram_model)
     handle_community('diabetes', ulmfit_model, ngram_model)
     handle_community('depression', ulmfit_model, ngram_model)
-
-    print("Done")
+    print("Language model extractor - Done.")

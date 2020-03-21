@@ -4,7 +4,7 @@ import pandas as pd
 import json
 import sys
 
-from debug.high_recall_matcher import word_is_english
+from debug.old_code.high_recall_matcher import word_is_english
 
 module_path = os.path.abspath(os.path.join('..', '..', '..', '..', os.getcwd()))
 sys.path.append(module_path)
@@ -20,7 +20,8 @@ SIMILARITY_THRESHOLD = 0.85
 
 class WindowsMaker:
     def __init__(self):
-        print("WindowsMaker Initialized")
+        # print("WindowsMaker Initialized")
+        pass
 
     def words_similarity(self, a, b):
         seq = difflib.SequenceMatcher(None, a, b)
@@ -51,8 +52,6 @@ class WindowsMaker:
             cand_term = " ".join(gram[:len_match])
             if self.words_similarity(cand_term, match) > SIMILARITY_THRESHOLD:
                 matches_with_idx = " ".join(txt_words[gram_idx:gram_idx+len_match])
-                if not self.words_similarity(matches_with_idx, match) > SIMILARITY_THRESHOLD:
-                    print("FUck", matches_with_idx, match)
                 assert self.words_similarity(matches_with_idx, match) > SIMILARITY_THRESHOLD
                 match_indexes.append(gram_idx)
 
@@ -107,8 +106,8 @@ class WindowsMaker:
                     train_instances.append(match_data)
 
         df = pd.DataFrame(train_instances)
-        print(f"WindowsMaker finished with community. Got cols: {df.columns}")
-        print(df.head(3))
+        # print(f"WindowsMaker finished with community. Got cols: {df.columns}")
+        # print(df.head(3))
         for c in ['all_match_occ', 'txt_words']:
             df[c] = df[c].apply(lambda x: json.dumps(x, ensure_ascii=False))
         return df
@@ -155,27 +154,24 @@ class WindowsMaker:
                 indexes_with_term.append(w_idx)
         first_container_w, second_container_w = other_m['umls_match'].split(" ")
         all_instances_of_term_are_contained = all(self.words_similarity(txt_words[i + 1], second_container_w) > SIMILARITY_THRESHOLD for i in indexes_with_term)
-        if all_instances_of_term_are_contained:
-            print(f"all_instances_of_term_are_contained: {m['umls_match']}, {other_m['umls_match']}")
+        # if all_instances_of_term_are_contained:
+        #     print(f"all_instances_of_term_are_contained: {m['umls_match']}, {other_m['umls_match']}")
         return all_instances_of_term_are_contained
 
     def does_other_span_contains_curr(self, m, other_m):
         s1 = m['curr_occurence_offset']
         s2 = other_m['curr_occurence_offset']
-        try:
-            e1 = s1 + len(m['cand_match'])
-        except Exception as ex:
-            print("Hey")
+        e1 = s1 + len(m['cand_match'])
         e2 = s2 + len(other_m['cand_match'])
         if abs(s1 - s2) <= 2 or abs(e1 - e2) <= 2:
-            print(f"Found long that contains: {m['umls_match']}, {other_m['umls_match']}, {s1, e1}, {s2, e2}")
+        #     print(f"Found long that contains: {m['umls_match']}, {other_m['umls_match']}, {s1, e1}, {s2, e2}")
             # return False
-            return False
-        return True
+            return True
+        return False
 
 
 def handle_community(community):
-    print(f"community: {community}")
+    # print(f"community: {community}")
 
     if DEBUG:
         df = pd.read_csv(input_dir + os.sep + community + "_debug.csv")
@@ -186,13 +182,14 @@ def handle_community(community):
     df = windows_maker.go(df)
 
     fpath = output_dir + os.sep + community + '.csv'
-    print(f"Writing file at shape: {df.shape} to fpath: {fpath}")
+    # print(f"Writing file at shape: {df.shape} to fpath: {fpath}")
     df.to_csv(fpath, index=False, encoding='utf-8-sig')
 
 
 if __name__ == '__main__':
-    handle_community('sclerosis')
+    print("Initializing training dataset ...")
     handle_community('diabetes')
+    handle_community('sclerosis')
     handle_community('depression')
 
-    print("Done")
+    print("Training dataset initialized.\n\n")

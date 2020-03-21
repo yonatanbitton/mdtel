@@ -31,7 +31,7 @@ def handle_community(community):
     all_final_cols = joint_cols + count_cols + lm_cols + relatedness_cols + yap_cols
 
     idx_col = 'match_occurence_idx_in_txt_words'
-    print(f"Len before: {len(initialized_training_dataset), len(count_features), len(lm_features), len(relatedness_features), len(yap_features)}")
+    # print(f"Len before: {len(initialized_training_dataset), len(count_features), len(lm_features), len(relatedness_features), len(yap_features)}")
 
     all_rows = []
     for idx in range(len(initialized_training_dataset)):
@@ -52,7 +52,7 @@ def handle_community(community):
     # for c in ['all_match_occ', 'txt_words', 'occurences_indexes_in_txt_words']:
     #     result[c] = result[c].apply(lambda x: json.dumps(x, ensure_ascii=False))
     result.to_csv(extracted_training_dataset_dir + os.sep + community + ".csv", index=False, encoding='utf-8-sig')
-    print(f"merged written to file {extracted_training_dataset_dir + os.sep + community}")
+    # print(f"merged written to file {extracted_training_dataset_dir + os.sep + community}")
 
 
 def remove_redundant_cols(r2, r3, r4, r5):
@@ -67,7 +67,7 @@ def main():
     handle_community('diabetes')
     handle_community('depression')
 
-    print("Done")
+    print("Merge extracted feats - Done.")
 
 if __name__ == '__main__':
     main()

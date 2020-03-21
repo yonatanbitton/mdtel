@@ -1,6 +1,7 @@
 import os
 
 data_dir = r"E:\mdtel_data\data" + os.sep
+umls_similarity_path = r'E:\umls_perl\UMLS-Similarity-1.47\utils'
 # FINAL_LABELS_COL = 'user_5_labels'
 # FINAL_LABELS_COL = 'user_6_labels'
 FINAL_LABELS_COL = 'merged_inner_and_outer'
@@ -56,4 +57,4 @@ CHEMICAL_OR_DRUGS_COL = "Chemical or drugs"
 
 SIMILARITY_THRESHOLD = 0.88
 
-
+general_exceptions = ['מחלה', 'תרופה']

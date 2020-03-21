@@ -20,7 +20,7 @@ output_dir = data_dir + r"contextual_relevance\yap_features"
 number_of_sorts = 0
 
 def handle_community(community):
-    print(f"community: {community}")
+    print(f"Yap features extractor, community: {community}")
     comm_df = pd.read_csv(input_dir + os.sep + community + ".csv")
     comm_df['txt_words'] = comm_df['txt_words'].apply(json.loads)
     comm_df['occurences_indexes_in_txt_words'] = comm_df['occurences_indexes_in_txt_words'].apply(json.loads)
@@ -41,8 +41,8 @@ def handle_community(community):
         yap_d = {**row.to_dict(), **dep_tree_d, **md_lattice_d}
         all_rows_with_yap.append(yap_d)
 
-        if row_idx % 10 == 0:
-            print(f"row_idx: {row_idx}, out of: {len(comm_df)}, match: {row['umls_match']}, number_of_sorts: {number_of_sorts}")
+        # if row_idx % 10 == 0:
+        #     print(f"row_idx: {row_idx}, out of: {len(comm_df)}, match: {row['umls_match']}, number_of_sorts: {number_of_sorts}")
 
     comm_df_yap = pd.DataFrame(all_rows_with_yap)
     comm_df_yap.to_csv(output_dir + os.sep + community + "_output.csv", index=False, encoding='utf-8-sig')
@@ -136,4 +136,4 @@ if __name__ == '__main__':
     handle_community("diabetes")
     handle_community("depression")
 
-    print("Done")
+    print("Yap features extractor - Done.")

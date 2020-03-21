@@ -8,7 +8,7 @@ import pandas as pd
 module_path = os.path.abspath(os.path.join('..', '..', '..', '..', os.getcwd()))
 sys.path.append(module_path)
 
-from config import data_dir, DEBUG, FINAL_LABELS_COL
+from config import data_dir, FINAL_LABELS_COL
 
 labels_dir = data_dir + r'manual_labeled_v2\doccano\merged_output'
 extracted_feats_dir = data_dir + r"contextual_relevance\extracted_training_dataset"
@@ -17,29 +17,24 @@ output_dir = data_dir + r"contextual_relevance\training_dataset_with_labels"
 
 SIMILARITY_THRESHOLD = 0.85
 
-if DEBUG:
-    print(f"*** DEBUG MODE: Taking 100 rows only ***")
-
 def handle_community(community):
-    print(f"community: {community}")
+    # print(f"community: {community}")
 
     extract_feats_df = pd.read_csv(extracted_feats_dir + os.sep + community + ".csv")
     extract_feats_df['all_match_occ'] = extract_feats_df['all_match_occ'].apply(lambda x: json.loads(x) if str(x) != 'nan' else [])
     extract_feats_df['curr_occurence_offset'] = extract_feats_df['curr_occurence_offset'].apply(lambda x: int(x) if str(x).isdigit() else x)
 
-    print(f"Original Shape: {extract_feats_df.shape}")
+    # print(f"Original Shape: {extract_feats_df.shape}")
 
     labels_df = pd.read_csv(labels_dir + os.sep + community + "_labels.csv")
     labels_df['merged_inner_and_outer'] = labels_df['merged_inner_and_outer'].apply(json.loads)
 
     relevant_feats_df = extract_feats_df[extract_feats_df['file_name'].isin(list(labels_df['file_name'].values))]
-    print(f"extract_feats_df shape: {extract_feats_df.shape}, relevant_feats_df.shape: {relevant_feats_df.shape}")
+    # print(f"extract_feats_df shape: {extract_feats_df.shape}, relevant_feats_df.shape: {relevant_feats_df.shape}")
 
 
     all_labels = []
     for r_idx, row in relevant_feats_df.iterrows():
-        if 'bisoprolol' in row['cand_match']:
-            print("Here")
 
         label_row = labels_df[labels_df['file_name'] == row['file_name']].iloc[0]
 
@@ -51,15 +46,15 @@ def handle_community(community):
             yi = get_yi_for_cand_match(label_row, row)
         all_labels.append(yi)
 
-    print(f"Final Shape (breaked): {relevant_feats_df.shape}")
+    # print(f"Final Shape (breaked): {relevant_feats_df.shape}")
     curr_cols = relevant_feats_df.columns
     relevant_feats_df['yi'] = all_labels
     cols_order = curr_cols.insert(1, 'yi')
     relevant_feats_df = relevant_feats_df[cols_order]
-    print("Done")
+    # print("Done")
 
     fpath = output_dir + os.sep + community + '.csv'
-    print(f"Writing file at shape: {relevant_feats_df.shape} to fpath: {fpath}")
+    # print(f"Writing file at shape: {relevant_feats_df.shape} to fpath: {fpath}")
     relevant_feats_df.to_csv(fpath, index=False, encoding='utf-8-sig')
 
 
@@ -112,4 +107,4 @@ if __name__ == '__main__':
     handle_community('sclerosis')
     handle_community('diabetes')
 
-    print("Done")
+    print("Adding labels - Done.")
