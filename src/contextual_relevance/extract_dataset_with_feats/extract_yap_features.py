@@ -5,6 +5,8 @@ import sys
 
 import pandas as pd
 
+from utils import words_similarity
+
 module_path = os.path.abspath(os.path.join('..', '..', '..', os.getcwd()))
 sys.path.append(module_path)
 
@@ -23,7 +25,7 @@ def handle_community(community):
     print(f"Yap features extractor, community: {community}")
     comm_df = pd.read_csv(input_dir + os.sep + community + ".csv")
     comm_df['txt_words'] = comm_df['txt_words'].apply(json.loads)
-    comm_df['occurences_indexes_in_txt_words'] = comm_df['occurences_indexes_in_txt_words'].apply(json.loads)
+    comm_df['all_match_occ'] = comm_df['all_match_occ'].apply(json.loads)
 
     comm_dep_trees_dir = dep_trees_dir + os.sep + community
     comm_md_lattices_dir = md_lattices_dir + os.sep + community
@@ -70,17 +72,17 @@ def get_dep_tree_features(comm_dep_trees_dir, full_fname, row):
 
 def get_correct_row_from_df(df, cand_match, umls_match, row):
     # global comm_duplicates
-    number_of_match = row['occurences_indexes_in_txt_words'].index(row['match_occurence_idx_in_txt_words'])
+    number_of_match = row['all_match_occ'].index(row['curr_occurence_offset'])
     cand_match_parts = cand_match.split(" ")
     match_len = len(cand_match_parts)
     cand_match_first_term = cand_match_parts[0]
     all_possible_word_rows = df[df['word'].apply(lambda x: words_similarity(x, cand_match_first_term) > SIMILARITY_THRESHOLD)]
 
-    if len(row['occurences_indexes_in_txt_words']) == len(all_possible_word_rows):
+    if len(row['all_match_occ']) == len(all_possible_word_rows):
         correct_row = all_possible_word_rows.iloc[number_of_match]
     else:
         all_possible_lemma_rows = df[df['lemma'].apply(lambda x: words_similarity(x, cand_match_first_term) > SIMILARITY_THRESHOLD)]
-        if len(row['occurences_indexes_in_txt_words']) == len(all_possible_lemma_rows):
+        if len(row['all_match_occ']) == len(all_possible_lemma_rows):
             correct_row = all_possible_lemma_rows.iloc[number_of_match]
         else:
             try:
@@ -126,10 +128,6 @@ def try_to_find_with_prefix(all_possible_word_rows, cand_match, df, match_len):
             break
     return best_idx_with_prefix
 
-
-def words_similarity(a, b):
-    seq = difflib.SequenceMatcher(None, a, b)
-    return seq.ratio()
 
 if __name__ == '__main__':
     handle_community("sclerosis")

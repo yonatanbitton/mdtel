@@ -4,8 +4,7 @@ import os
 import pandas as pd
 
 from config import data_dir
-from contextual_relevance.extract_dataset_with_feats.extract_relatedness_features import \
-    get_dataframes_of_words_and_lemmas, get_all_words_and_lemmas_from_df
+
 from contextual_relevance.extract_dataset_with_feats.yap.yap_api import YapApi
 
 raw_tokenized_dir = data_dir + r"high_recall_matcher\posts\lemlda\raw_tokenized"
@@ -34,6 +33,7 @@ def parse_community(community):
     print(f"Finished with community {community}")
 
 def get_yap_features(post_example, community, file_name):
+    post_example = post_example.replace("\n", " ").replace(".", " ").replace(",", " ")
     tokenized_text, segmented_text, lemmas, dep_tree, md_lattice, ma_lattice = yap.run(post_example, ip)
     dataframes = get_dataframes_of_words_and_lemmas(md_lattice)
     if dataframes == []:
@@ -71,23 +71,65 @@ def handle_fpath(fpath, file_name, all_df_rows, community):
         return
     general_count += 1
     post_yap_features = get_yap_features(post_txt_dots, community, file_name)
-
-    # post_d = {'file_name': file_name, 'post_words_and_lemmas': json.dumps(post_words_and_lemmas, ensure_ascii=False),
-    #           'post_txt': post_txt_dots, 'post_dep_tree': post_dep_tree}
     post_d = {'file_name': file_name, 'post_txt': post_txt_dots, **post_yap_features}
 
-    if general_count % 50 == 0 or "שלום שושי" in post_txt_dots:
-        if "שלום שושי" in post_txt_dots:
-            print(f"שלום שושי!!!")
-        print(post_d)
     all_df_rows.append(post_d)
+
+def get_words_and_lemmas(post_example):
+    tokenized_text, segmented_text, lemmas, dep_tree, md_lattice, ma_lattice = yap.run(post_example, ip)
+    dataframes = get_dataframes_of_words_and_lemmas(md_lattice)
+    if dataframes == []:
+        return []
+
+    words_and_lemmas = get_all_words_and_lemmas_from_df(dataframes)
+    return words_and_lemmas
+
+def get_dataframes_of_words_and_lemmas(md_lattice):
+    if 'num_last' not in md_lattice:
+        return []
+    md_lattice['num_last'] = md_lattice['num_last'].apply(lambda x: int(x))
+    indexes_of_starts = find_indexes_of_start(md_lattice)
+    if len(indexes_of_starts) == 1:
+        dataframes = [md_lattice]
+    else:
+        dataframes = build_dataframes(indexes_of_starts, md_lattice)
+    return dataframes
+
+def build_dataframes(indexes_of_starts, md_lattice):
+    pairs = list(zip(indexes_of_starts, indexes_of_starts[1:]))
+    dataframes = []
+    for pair in pairs:
+        df = md_lattice.iloc[pair[0]:pair[1]]
+        dataframes.append(df)
+    last_df = md_lattice.iloc[pairs[-1][1]:]
+    dataframes.append(last_df)
+    return dataframes
+
+def find_indexes_of_start(md_lattice):
+    indexes_of_starts = []
+    for idx, val in enumerate(md_lattice['num_last'].values):
+        if val == 1:
+            indexes_of_starts.append(idx)
+    return indexes_of_starts
+
+
+def max_len(s):
+    return max(s, key=len)
+
+def get_all_words_and_lemmas_from_df(dataframes):
+    all_words_and_lemmas = []
+    for df in dataframes:
+        words_and_lemmas_groups = df.groupby('num_last').agg({'lemma': max_len, 'word': max_len})
+        words_and_lemmas_groups = words_and_lemmas_groups.sort_values(by=['num_last'])
+        words_and_lemmas = [x['lemma'] + " " + x['word'] for x in
+                            words_and_lemmas_groups.to_dict('index').values()]
+        all_words_and_lemmas += words_and_lemmas
+    return all_words_and_lemmas
 
 
 def main():
-    # fpath = r"E:\mdtel_data\data\high_recall_matcher\posts\lemlda\raw_tokenized\sclerosis\15.txt"
-    # handle_fpath_newlines(fpath)
-    # parse_community('sclerosis')
-    # parse_community('diabetes')
+    parse_community('sclerosis')
+    parse_community('diabetes')
     parse_community('depression')
 
 if __name__ == '__main__':

@@ -1,10 +1,14 @@
 import difflib
 import os
+import re
+
 import pandas as pd
 import json
 import sys
 
-from debug.old_code.high_recall_matcher import word_is_english
+# from debug.old_code.high_recall_matcher import word_is_english
+from high_recall_matcher_posts_level import word_is_english, replace_puncs
+from utils import words_similarity
 
 module_path = os.path.abspath(os.path.join('..', '..', '..', '..', os.getcwd()))
 sys.path.append(module_path)
@@ -19,18 +23,10 @@ output_dir = data_dir + r"contextual_relevance\initialized_training_dataset"
 SIMILARITY_THRESHOLD = 0.85
 
 class WindowsMaker:
-    def __init__(self):
-        # print("WindowsMaker Initialized")
-        pass
-
-    def words_similarity(self, a, b):
-        seq = difflib.SequenceMatcher(None, a, b)
-        return seq.ratio()
-
     def match_not_similar_to_short_match(self, match, all_short_matches):
         similar = False
         for m in all_short_matches:
-            if self.words_similarity(m, match) > SIMILARITY_THRESHOLD:
+            if words_similarity(m, match) > SIMILARITY_THRESHOLD:
                 similar = True
                 break
         return not similar
@@ -50,9 +46,9 @@ class WindowsMaker:
 
         for gram_idx, gram in enumerate(ngrams):
             cand_term = " ".join(gram[:len_match])
-            if self.words_similarity(cand_term, match) > SIMILARITY_THRESHOLD:
+            if words_similarity(cand_term, match) > SIMILARITY_THRESHOLD:
                 matches_with_idx = " ".join(txt_words[gram_idx:gram_idx+len_match])
-                assert self.words_similarity(matches_with_idx, match) > SIMILARITY_THRESHOLD
+                assert words_similarity(matches_with_idx, match) > SIMILARITY_THRESHOLD
                 match_indexes.append(gram_idx)
 
         return match_indexes
@@ -62,16 +58,40 @@ class WindowsMaker:
             return txt_words[:idx]
         return txt_words[idx - k:idx]
 
-    def get_windows_for_match(self, txt_words, idx):
-        match_3_window = " ".join(self.get_prefix(idx, 3, txt_words))
-        match_6_window = " ".join(self.get_prefix(idx, 6, txt_words))
-        match_10_window = " ".join(self.get_prefix(idx, 10, txt_words))
+    def get_windows_for_match(self, match, row):
+        post_txt = row['post_txt']
+        post_txt = replace_puncs(post_txt)
+        curr_occurence_offset = match['curr_occurence_offset']
+        # match in text - post_txt[curr_occurence_offset:curr_occurence_offset + len(match['cand_match'])]
+        relevant_post_prefix = post_txt[:curr_occurence_offset-1]
+
+        relevant_post_idx_words = [w for w in relevant_post_prefix.split(" ") if w != ' ' and w != '']
+        relevant_post_idx_single_spaces = " ".join(relevant_post_idx_words) + " "
+        indices_of_spaces = [m.start() for m in re.finditer(' ', relevant_post_idx_single_spaces)]
+        if len(indices_of_spaces) > 0:
+            pairs = list(zip(indices_of_spaces, indices_of_spaces[1:]))
+            pairs.insert(0, (-1, indices_of_spaces[0]))
+            all_preceding_ws = [relevant_post_idx_single_spaces[i1+1:i2] for i1, i2 in pairs]
+        else:
+            all_preceding_ws = relevant_post_idx_words
+
+        match_3_window = " ".join(all_preceding_ws[-3:])
+        match_6_window = " ".join(all_preceding_ws[-6:])
+        match_10_window = " ".join(all_preceding_ws[-10:])
+
+        # print(post_txt[:curr_occurence_offset + len(match['cand_match']) + 1])
+        # print(match_3_window + ' - ' + match['cand_match'])
+        # print(match_6_window + ' - ' + match['cand_match'])
+        # print(match_10_window + ' - ' + match['cand_match'])
+        # print("\n")
+
         return match_3_window, match_6_window, match_10_window
 
     def go(self, community_df):
         community_df['matches_found'] = community_df['matches_found'].apply(json.loads)
 
         train_instances = []
+        bad_count = 0
 
         for row_idx, row in community_df.iterrows():
             if str(row['tokenized_text']) == 'nan':
@@ -80,30 +100,33 @@ class WindowsMaker:
 
             most_specific_matches = self.get_most_specific_matches(row)
 
-            # if most_specific_matches != row['matches_found']:
-            #     print(f"Most specific for: {[m['umls_match'] for m in row['matches_found']]} is {[m['umls_match'] for m in most_specific_matches]}")
-
             for match in most_specific_matches:
                 # get the matches indexes in text
-                occurences_indexes_in_txt_words = self.get_all_occurences_of_match_in_text(match['umls_match'], txt_words)
+                if match['curr_occurence_offset'] == 'lemma' or match['curr_occurence_offset'] is None or not type(match['curr_occurence_offset']) == int:
+                    bad_count += 1
+                    print(match)
+                    print(f"*** BAD COUNT {match['curr_occurence_offset'], match['cand_match']}, bad_count: {bad_count}")
+                    print(row['post_txt'])
+                    continue
 
-                # create windows
-                for match_occurence_idx_in_txt_words in occurences_indexes_in_txt_words:
-                    match_3_window, match_6_window, match_10_window = self.get_windows_for_match(txt_words, match_occurence_idx_in_txt_words)
+                match_3_window, match_6_window, match_10_window = self.get_windows_for_match(match, row)
 
-                    if 'match_eng' not in match:
-                        match['match_eng'] = match['umls_match']
+                if 'match_eng' not in match:
+                    match['match_eng'] = match['umls_match']
 
-                    match_data = {'umls_match': match['umls_match'], 'cand_match': match['cand_match'],
-                                  'file_name': row['file_name'], 'row_idx': row_idx, 'match_eng': match['match_eng'],
-                                  'match_occurence_idx_in_txt_words': match_occurence_idx_in_txt_words,
-                                  'occurences_indexes_in_txt_words': occurences_indexes_in_txt_words,
-                                  'txt_words': txt_words,
-                                  'tokenized_text': txt, 'match_3_window': match_3_window,
-                                  'match_6_window': match_6_window, 'match_10_window': match_10_window,
-                                  'match_tui': match['match_tui'], 'semantic_type': match['semantic_type'],
-                                  'all_match_occ': match['all_match_occ'], 'curr_occurence_offset': match['curr_occurence_offset']}
-                    train_instances.append(match_data)
+                if word_is_english(match['cand_match']):
+                    match_type = 'tokenized_text'
+                else:
+                    match_type = match['hebrew_key']
+
+                match_data = {'umls_match': match['umls_match'], 'cand_match': match['cand_match'],
+                              'file_name': row['file_name'], 'row_idx': row_idx, 'match_eng': match['match_eng'],
+                              'txt_words': txt_words, 'match_type': match_type,
+                              'tokenized_text': txt, 'match_3_window': match_3_window,
+                              'match_6_window': match_6_window, 'match_10_window': match_10_window,
+                              'match_tui': match['match_tui'], 'semantic_type': match['semantic_type'],
+                              'all_match_occ': match['all_match_occ'], 'curr_occurence_offset': match['curr_occurence_offset']}
+                train_instances.append(match_data)
 
         df = pd.DataFrame(train_instances)
         # print(f"WindowsMaker finished with community. Got cols: {df.columns}")
@@ -130,30 +153,26 @@ class WindowsMaker:
     def no_longer_match_that_contains_m_in_same_span(self, matches, m, row):
         curr_len = len(m['umls_match'].split(" "))
         for other_m in matches:
-            if other_m['curr_occurence_offset'] == 'lemma' or other_m['curr_occurence_offset'] is None:
+            if other_m['curr_occurence_offset'] is None:
+                print(f"other_m['curr_occurence_offset'] is None")
                 continue
             other_len = len(other_m['umls_match'].split(" "))
             if other_len > curr_len:
                 other_m_with_same_len_as_curr = " ".join(other_m['umls_match'].split(" ")[:curr_len])
-                if len(other_m['umls_match'].split(" ")[curr_len]) >= 3 and self.words_similarity(other_m_with_same_len_as_curr, m['umls_match']) > 0.88:
-                    if m['curr_occurence_offset'] == 'lemma' and curr_len == 1 and other_len == 2:
-                        all_instances_of_term_are_contained = self.are_all_instances_of_term_are_contained(m, other_m, row)
-                        if all_instances_of_term_are_contained:
-                            return False
-                    elif m['curr_occurence_offset'] != 'lemma':
-                        other_span_contains_curr = self.does_other_span_contains_curr(m, other_m)
-                        if other_span_contains_curr:
-                            return False
+                if len(other_m['umls_match'].split(" ")[curr_len]) >= 3 and words_similarity(other_m_with_same_len_as_curr, m['umls_match']) > 0.88:
+                    other_span_contains_curr = self.does_other_span_contains_curr(m, other_m)
+                    if other_span_contains_curr:
+                        return False
         return True
 
     def are_all_instances_of_term_are_contained(self, m, other_m, row):
         txt_words = row['tokenized_text'].split(" ")
         indexes_with_term = []
         for w_idx, w in enumerate(txt_words):
-            if self.words_similarity(w, m['umls_match']) > SIMILARITY_THRESHOLD:
+            if words_similarity(w, m['umls_match']) > SIMILARITY_THRESHOLD:
                 indexes_with_term.append(w_idx)
         first_container_w, second_container_w = other_m['umls_match'].split(" ")
-        all_instances_of_term_are_contained = all(self.words_similarity(txt_words[i + 1], second_container_w) > SIMILARITY_THRESHOLD for i in indexes_with_term)
+        all_instances_of_term_are_contained = all(words_similarity(txt_words[i + 1], second_container_w) > SIMILARITY_THRESHOLD for i in indexes_with_term)
         # if all_instances_of_term_are_contained:
         #     print(f"all_instances_of_term_are_contained: {m['umls_match']}, {other_m['umls_match']}")
         return all_instances_of_term_are_contained

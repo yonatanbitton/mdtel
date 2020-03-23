@@ -147,23 +147,48 @@ def merge_comm(community):
     posts_df = pd.read_excel(posts_dir + os.sep + community + "_posts.xlsx")
     annotation_df, comm_lines_stats_ser = build_labels_df(comm_lines, community, posts_df)
 
-    annotation_df['inner_join_same_matches'] = annotation_df.apply(lambda row: get_inner_join_matched_terms(row), axis=1)
-    annotation_df['user_5_left_join_user_6'] = annotation_df.apply(lambda row: get_left_join_terms(row['user_5_labels'], row['user_6_labels']), axis=1)
-    annotation_df['user_6_left_join_user_5'] = annotation_df.apply(lambda row: get_left_join_terms(row['user_6_labels'], row['user_5_labels']), axis=1)
-    annotation_df['outer_join_users'] = annotation_df.apply(lambda row: outer_join_rows(row['user_5_left_join_user_6'], row['user_6_left_join_user_5']), axis=1)
-    annotation_df['overlaps'] = annotation_df.apply(lambda row: get_overlaps(row), axis=1)
-    annotation_df['merged_inner_and_outer'] = annotation_df.apply(lambda row: outer_join_rows(row['inner_join_same_matches'], row['outer_join_users']), axis=1)
+    merge_stats_ser, places_with_overlaps = get_stats(annotation_df)
 
-    annotation_df['number_of_user_5_annotations'] = annotation_df['user_5_labels'].apply(lambda lst: len(lst))
-    annotation_df['number_of_user_6_annotations'] = annotation_df['user_6_labels'].apply(lambda lst: len(lst))
-    annotation_df['number_of_inner_join_same_matches'] = annotation_df['inner_join_same_matches'].apply(lambda lst: len(lst))
-    annotation_df['number_user_5_left_join_user_6'] = annotation_df['user_5_left_join_user_6'].apply(lambda lst: len(lst))
-    annotation_df['number_user_6_left_join_user_5'] = annotation_df['user_6_left_join_user_5'].apply(lambda lst: len(lst))
-    annotation_df['number_outer_join_users'] = annotation_df['outer_join_users'].apply(lambda lst: len(lst))
-    annotation_df['number_overlaps'] = annotation_df['overlaps'].apply(lambda d: get_number_of_overlaps(d))
-    annotation_df['number_merged_inner_and_outer'] = annotation_df['merged_inner_and_outer'].apply(lambda lst: len(lst))
-    places_with_overlaps = annotation_df[annotation_df['number_overlaps'] > 0]
+    export_data(annotation_df, community, places_with_overlaps)
 
+    print(f"Finished with community: {community}\n\n")
+    return merge_stats_ser, comm_lines_stats_ser
+
+
+def get_stats(annotation_df):
+    places_with_overlaps = add_fields_to_df(annotation_df)
+    total_5_left_join_6, total_6_left_join_5, total_inner_join, total_merged_inner_and_outer, \
+    total_number_of_rows_with_overlaps, total_outer_joins, total_overlaps, total_user_5, total_user_6 = \
+        calculate_statistics(annotation_df, places_with_overlaps)
+    merge_stats = {'total_user_5': total_user_5, 'total_user_6': total_user_6, 'total_inner_join': total_inner_join,
+                   'total_5_left_join_6': total_5_left_join_6, 'total_6_left_join_5': total_6_left_join_5,
+                   'total_outer_joins': total_outer_joins, 'total_overlaps': total_overlaps,
+                   'total_merged_inner_and_outer': total_merged_inner_and_outer,
+                   'total_number_of_rows_with_overlaps': total_number_of_rows_with_overlaps}
+    merge_stats_ser = pd.Series(merge_stats)
+    print(merge_stats_ser)
+    return merge_stats_ser, places_with_overlaps
+
+
+def export_data(annotation_df, community, places_with_overlaps):
+    print_overlaps(places_with_overlaps)
+    wanted_cols = ['text', 'tokenized_text', 'file_name', 'merged_inner_and_outer']
+    annotation_df = annotation_df[wanted_cols]
+    annotation_df['merged_inner_and_outer'] = annotation_df['merged_inner_and_outer'].apply(
+        lambda x: json.dumps(x, ensure_ascii=False))
+    annotation_df.to_csv(labels_output + os.sep + community + "_labels.csv", index=False, encoding='utf-8-sig')
+    places_with_overlaps['yoav_overlaps_with_ora'] = places_with_overlaps['overlaps'].apply(
+        lambda x: get_overlaps_for_user(x, 5))
+    places_with_overlaps['ora_overlaps_with_yoav'] = places_with_overlaps['overlaps'].apply(
+        lambda x: get_overlaps_for_user(x, 6))
+    places_with_overlaps = places_with_overlaps[['text', 'yoav_overlaps_with_ora', 'ora_overlaps_with_yoav']]
+    for c in ['yoav_overlaps_with_ora', 'ora_overlaps_with_yoav']:
+        places_with_overlaps[c] = places_with_overlaps[c].apply(lambda x: json.dumps(x, ensure_ascii=False))
+    places_with_overlaps.to_csv(labels_output + os.sep + community + "_overlaps.csv", index=False, encoding='utf-8-sig')
+    annotation_df.to_csv(labels_output + os.sep + community + "_labels.csv", index=False, encoding='utf-8-sig')
+
+
+def calculate_statistics(annotation_df, places_with_overlaps):
     total_user_5 = annotation_df['number_of_user_5_annotations'].sum()
     total_user_6 = annotation_df['number_of_user_6_annotations'].sum()
     total_inner_join = annotation_df['number_of_inner_join_same_matches'].sum()
@@ -173,15 +198,37 @@ def merge_comm(community):
     total_overlaps = annotation_df['number_overlaps'].sum()
     total_merged_inner_and_outer = annotation_df['number_merged_inner_and_outer'].sum()
     total_number_of_rows_with_overlaps = len(places_with_overlaps)
+    return total_5_left_join_6, total_6_left_join_5, total_inner_join, total_merged_inner_and_outer, total_number_of_rows_with_overlaps, total_outer_joins, total_overlaps, total_user_5, total_user_6
 
-    merge_stats = {'total_user_5': total_user_5, 'total_user_6': total_user_6, 'total_inner_join': total_inner_join,
-         'total_5_left_join_6': total_5_left_join_6, 'total_6_left_join_5': total_6_left_join_5,
-         'total_outer_joins': total_outer_joins, 'total_overlaps': total_overlaps,
-         'total_merged_inner_and_outer': total_merged_inner_and_outer,
-                   'total_number_of_rows_with_overlaps': total_number_of_rows_with_overlaps}
-    merge_stats_ser = pd.Series(merge_stats)
-    print(merge_stats_ser)
 
+def add_fields_to_df(annotation_df):
+    annotation_df['inner_join_same_matches'] = annotation_df.apply(lambda row: get_inner_join_matched_terms(row),
+                                                                   axis=1)
+    annotation_df['user_5_left_join_user_6'] = annotation_df.apply(
+        lambda row: get_left_join_terms(row['user_5_labels'], row['user_6_labels']), axis=1)
+    annotation_df['user_6_left_join_user_5'] = annotation_df.apply(
+        lambda row: get_left_join_terms(row['user_6_labels'], row['user_5_labels']), axis=1)
+    annotation_df['outer_join_users'] = annotation_df.apply(
+        lambda row: outer_join_rows(row['user_5_left_join_user_6'], row['user_6_left_join_user_5']), axis=1)
+    annotation_df['overlaps'] = annotation_df.apply(lambda row: get_overlaps(row), axis=1)
+    annotation_df['merged_inner_and_outer'] = annotation_df.apply(
+        lambda row: outer_join_rows(row['inner_join_same_matches'], row['outer_join_users']), axis=1)
+    annotation_df['number_of_user_5_annotations'] = annotation_df['user_5_labels'].apply(lambda lst: len(lst))
+    annotation_df['number_of_user_6_annotations'] = annotation_df['user_6_labels'].apply(lambda lst: len(lst))
+    annotation_df['number_of_inner_join_same_matches'] = annotation_df['inner_join_same_matches'].apply(
+        lambda lst: len(lst))
+    annotation_df['number_user_5_left_join_user_6'] = annotation_df['user_5_left_join_user_6'].apply(
+        lambda lst: len(lst))
+    annotation_df['number_user_6_left_join_user_5'] = annotation_df['user_6_left_join_user_5'].apply(
+        lambda lst: len(lst))
+    annotation_df['number_outer_join_users'] = annotation_df['outer_join_users'].apply(lambda lst: len(lst))
+    annotation_df['number_overlaps'] = annotation_df['overlaps'].apply(lambda d: get_number_of_overlaps(d))
+    annotation_df['number_merged_inner_and_outer'] = annotation_df['merged_inner_and_outer'].apply(lambda lst: len(lst))
+    places_with_overlaps = annotation_df[annotation_df['number_overlaps'] > 0]
+    return places_with_overlaps
+
+
+def print_overlaps(places_with_overlaps):
     for row_idx, row in places_with_overlaps.iterrows():
         user_5_labels = row['user_5_labels']
         user_6_labels = row['user_6_labels']
@@ -197,31 +244,13 @@ def merge_comm(community):
         # print(user_6_labels)
         print('\noverlaps')
         # print(overlaps)
-        for t,v in overlaps.items():
+        for t, v in overlaps.items():
             print(t, v)
         print('\nmerged')
         # print(merged_inner_and_outer)
         for t in merged_inner_and_outer:
             print(t)
         print("\n\n")
-
-    wanted_cols = ['text', 'tokenized_text', 'file_name', 'merged_inner_and_outer']
-    annotation_df = annotation_df[wanted_cols]
-    annotation_df['merged_inner_and_outer'] = annotation_df['merged_inner_and_outer'].apply(lambda x: json.dumps(x, ensure_ascii=False))
-    annotation_df.to_csv(labels_output + os.sep + community + "_labels.csv", index=False, encoding='utf-8-sig')
-
-    places_with_overlaps['yoav_overlaps_with_ora'] = places_with_overlaps['overlaps'].apply(lambda x: get_overlaps_for_user(x, 5))
-    places_with_overlaps['ora_overlaps_with_yoav'] = places_with_overlaps['overlaps'].apply(lambda x: get_overlaps_for_user(x, 6))
-    places_with_overlaps = places_with_overlaps[['text', 'yoav_overlaps_with_ora', 'ora_overlaps_with_yoav']]
-    for c in ['yoav_overlaps_with_ora', 'ora_overlaps_with_yoav']:
-        places_with_overlaps[c] = places_with_overlaps[c].apply(lambda x: json.dumps(x, ensure_ascii=False))
-
-    places_with_overlaps.to_csv(labels_output + os.sep + community + "_overlaps.csv", index=False, encoding='utf-8-sig')
-
-    annotation_df.to_csv(labels_output + os.sep + community + "_labels.csv", index=False, encoding='utf-8-sig')
-
-    print(f"Finished with community: {community}\n\n")
-    return merge_stats_ser, comm_lines_stats_ser
 
 
 def row_annotated_by_at_least_one_user(row):

@@ -5,6 +5,8 @@ import sys
 
 import pandas as pd
 
+from utils import words_similarity
+
 module_path = os.path.abspath(os.path.join('..', '..', '..', '..', os.getcwd()))
 sys.path.append(module_path)
 
@@ -18,7 +20,7 @@ output_dir = data_dir + r"contextual_relevance\training_dataset_with_labels"
 SIMILARITY_THRESHOLD = 0.85
 
 def handle_community(community):
-    # print(f"community: {community}")
+    print(f"community: {community}")
 
     extract_feats_df = pd.read_csv(extracted_feats_dir + os.sep + community + ".csv")
     extract_feats_df['all_match_occ'] = extract_feats_df['all_match_occ'].apply(lambda x: json.loads(x) if str(x) != 'nan' else [])
@@ -96,10 +98,6 @@ def get_best_match(relevant_labeled_df, row, final_label_col):
             best_match = term
     return best_match, best_match_sim
 
-
-def words_similarity(a, b):
-    seq = difflib.SequenceMatcher(None, a, b)
-    return seq.ratio()
 
 
 if __name__ == '__main__':

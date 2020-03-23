@@ -2,8 +2,6 @@ import os
 
 data_dir = r"E:\mdtel_data\data" + os.sep
 umls_similarity_path = r'E:\umls_perl\UMLS-Similarity-1.47\utils'
-# FINAL_LABELS_COL = 'user_5_labels'
-# FINAL_LABELS_COL = 'user_6_labels'
 FINAL_LABELS_COL = 'merged_inner_and_outer'
 
 DEBUG = False
@@ -58,3 +56,13 @@ CHEMICAL_OR_DRUGS_COL = "Chemical or drugs"
 SIMILARITY_THRESHOLD = 0.88
 
 general_exceptions = ['מחלה', 'תרופה']
+
+# High recall matcher
+LOW_SINGLE_WORD_SIMILARITY_THRESHOLD = 0.78
+UP_SINGLE_WORD_SIMILARITY_THRESHOLD = 0.85
+LOW_MULTI_WORD_SIMILARITY_THRESHOLD = 0.83
+UP_MULTI_WORD_SIMILARITY_THRESHOLD = 0.90
+DIABETES, SCLEROSIS, DEPRESSION = 'diabetes', 'sclerosis', 'depression'
+NUMBER_OF_GRAMS = 3
+STRING_COLUMN = 'STR'
+number_of_posts_needed = {'sclerosis': 265, 'diabetes': 266, 'depression': 271}

@@ -72,7 +72,6 @@ def find_best_threshold_for_semantic_type(community, community_df, semantic_type
             best_experiment_data = experiment_data
 
     community_score = print_best_experiment_data(community, best_experiment_data, semantic_type)
-    exit()
     return community_score
 
 
@@ -111,6 +110,7 @@ def get_misclassifications_numbers_for_semantic_type(community_df, labels_df, an
     print(f"{annotated_col} missed_items_strict {len(missed_items_strict)}")
     print(f"{annotated_col} missed_items {len(missed_items)}, set length: {len(set(missed_items))}")
     number_of_items_labeled_as_positive_but_wasnt_at_high_recall_list = len(missed_items)
+    print(missed_items)
     # number_of_items_labeled_as_positive_but_wasnt_at_high_recall_list = 0 # TODO - update
     return number_of_items_labeled_as_positive_but_wasnt_at_high_recall_list
 
