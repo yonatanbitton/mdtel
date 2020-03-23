@@ -62,7 +62,10 @@ The output will be at: `data\high_recall_matcher\output`
 
 ## Contextual Relevance
 
-Run the code at `evaluate_contextual_relevance_model.py` in order to train and evaluate the contextual relevance model.  
+Run the code at `extract_contexual_relevance_model_features.py` in order to extract features for the contextual relevance model.  
+`python src\contextual_relevance\extract_contexual_relevance_model_features.py`  
+
+Then, run the code at `evaluate_contextual_relevance_model.py` in order to train and evaluate the contextual relevance model.  
 `python src\contextual_relevance\evaluate_contextual_relevance_model.py`  
 
 This step includes several parts:
@@ -85,11 +88,6 @@ First language model: Simple n-gram model. The code for this part is here: https
 The second language model is based on fastai language model. 
 
 #### Fastai ULMFiT Model
-
-[Optional]
-Run the code `ulmfit_predict_probs.py` in order to use the trained language model in order to get features of 
-probabilities of words in contexts for our dataset.  
-`python src\contextual_relevance\extract_dataset_with_feats\language_models\ulmfit_predict_probs.py`  
 
 * If an error rises while loading the language model, try to downgrade to pytorch=1.1.0
 
