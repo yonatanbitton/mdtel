@@ -64,6 +64,8 @@ The output will be at: `data\high_recall_matcher\output`
 Run the code at `extract_contexual_relevance_model_features.py` in order to extract features for the contextual relevance model.  
 `python src\contextual_relevance\extract_contexual_relevance_model_features.py`  
 
+This code **extracts all of the features automatically**, no need to run each file in seperate. 
+
 Then, run the code at `evaluate_contextual_relevance_model.py` in order to train and evaluate the contextual relevance model.  
 `python src\contextual_relevance\evaluate_contextual_relevance_model.py`  
 
@@ -75,9 +77,10 @@ This step includes several parts:
 After preparing all of the feature parts, we will have combined dataset with those features,
 that can be used in order to evaluate the contextual relevance model.
 
-This is how to produce each one of the features: 
+This is how to produce each one of the features with new data (No need to run it, the `extract_contexual_relevance_model_features.py` already executed those files): 
 
 ### Language models
+`extract_language_model_feats.py`
 
 The data for this part is available at the data directory, and is originally from: http://u.cs.biu.ac.il/~yogo/hebwiki/
 
@@ -108,6 +111,8 @@ For example we expect P(Red | This car is) > P(Frog | This car is) (P = get_prob
 
 
 ### Relatedness
+`extract_relatedness_features.py`
+
 The software that is needed in order to use this part:
 https://metacpan.org/pod/UMLS::Similarity
 
@@ -132,7 +137,5 @@ The relatedness output for our 3 communities is at "data\contextual_relevance\re
 
 ### Match count and match frequency
 
-Run the code `add_count_features.py`.    
-`python src\contextual_relevance\extract_dataset_with_feats\add_count_features.py`  
- 
+`extract_count_features.py`.     
 This file simply prepares a Counter over the wikipedia data, and produces match count and match frequency for each match. 
