@@ -56,7 +56,6 @@ The output is at `data\transliteration\inference_predict_all_umls\mrconso_transl
 
 Run the code `high_recall_matcher.py`.    
 `python src\high_recall_matcher.py`  
-use `DEBUG = True` if you want it to perform on 100 posts (runs all of the process faster).
 
 The output will be at: `data\high_recall_matcher\output`
 
