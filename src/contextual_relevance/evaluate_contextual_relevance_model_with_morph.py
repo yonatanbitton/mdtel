@@ -28,30 +28,9 @@ def evaluate_community(community):
     else:
         disorders_number_extra_fns, chemical_or_drugs_extra_fns = 0, 0
 
-    disorders_community_score, disorders_experiment_data = get_best_results_for_semantic_type(community, community_df, DISORDER, disorders_number_extra_fns)
-    chemicals_community_score, chemicals_experiment_data = get_best_results_for_semantic_type(community, community_df, CHEMICAL_OR_DRUG, chemical_or_drugs_extra_fns)
-
-    # create_bio_tag(community_df, chemicals_experiment_data, disorders_experiment_data)
-
+    disorders_community_score = find_best_threshold_for_semantic_type(community, community_df, DISORDER, disorders_number_extra_fns)
+    chemicals_community_score = find_best_threshold_for_semantic_type(community, community_df, CHEMICAL_OR_DRUG, chemical_or_drugs_extra_fns)
     return disorders_community_score, chemicals_community_score
-
-
-def create_bio_tag(community_df, chemicals_experiment_data, disorders_experiment_data):
-    disorders_seq_data = disorders_experiment_data['initial_results']['X_test_seq_data']
-    chemicals_seq_data = chemicals_experiment_data['initial_results']['X_test_seq_data']
-    dis_fnames = set(disorders_seq_data['file_name'])
-    chem_fnames = set(chemicals_seq_data['file_name'])
-    fnames_inner_intersections = dis_fnames.intersection(chem_fnames)
-    dis_fnames_no_chems = dis_fnames.difference(chem_fnames)
-    chems_fnames_no_dis = chem_fnames.difference(dis_fnames)
-    fnames_union = fnames_inner_intersections.union(dis_fnames_no_chems, chems_fnames_no_dis)
-
-    community_df = community_df[list(disorders_seq_data.columns)]
-    grouped = community_df.groupby('file_name')
-    for idx, post_df in grouped:
-        print("Hey")
-
-    print("Yo")
 
 
 def print_best_experiment_data(community, best_experiment_data, semantic_type):
@@ -75,17 +54,19 @@ def print_best_experiment_data(community, best_experiment_data, semantic_type):
     return community_score
 
 
-def get_best_results_for_semantic_type(community, community_df, semantic_type, extra_fns):
+def find_best_threshold_for_semantic_type(community, community_df, semantic_type, extra_fns):
     semantic_type_df = community_df[community_df['semantic_type'] == semantic_type]
 
     selected_feats = ['match_freq', 'pred_3_window', 'pred_6_window', 'relatedness'] # 'dep_part', 'gen', 'pos', 'tense'
+    # categorial_feats = ['dep_part', 'gen', 'pos', 'tense']
+    categorial_feats = ['dep_part', 'pos']
 
     best_joint_score = 0
     best_experiment_data = None
     n_estimators = 50
     test_size = 0.25
     for threshold in [i / 10 for i in list(range(1, 10))]:
-        experiment_data, score = get_results_for_threshold(community, semantic_type_df, n_estimators, selected_feats,
+        experiment_data, score = get_results_for_threshold(community, semantic_type_df, n_estimators, selected_feats, categorial_feats,
                                                            test_size, threshold, extra_fns)
 
         if score > best_joint_score:
@@ -93,7 +74,7 @@ def get_best_results_for_semantic_type(community, community_df, semantic_type, e
             best_experiment_data = experiment_data
 
     community_score = print_best_experiment_data(community, best_experiment_data, semantic_type)
-    return community_score, best_experiment_data
+    return community_score
 
 
 def get_number_of_items_labeled_as_positive_but_wasnt_at_high_recall_list(community, community_df):
@@ -193,38 +174,36 @@ def difference_with_similarity_or_sub_term(semantic_type_all_high_recall_matches
 
 
 
-def get_results_for_threshold(community, community_df, n_estimators, selected_feats, test_size, threshold, extra_fns):
+def get_results_for_threshold(community, community_df, n_estimators, selected_feats, categorial_feats, test_size, threshold, extra_fns):
     model = RandomForestClassifier(n_estimators=n_estimators)
     X = community_df
-    # y = community_df['yi']
-
-    all_filenames = X['file_name'].values
-    all_filenames_nodups = list(set(all_filenames))
-    filenames_train, filenames_test = train_test_split(all_filenames_nodups, test_size=test_size, shuffle=True)
-
-    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, shuffle=True)
-    X_train = X[X['file_name'].isin(filenames_train)]
-    y_train = X_train['yi']
-    X_test = X[X['file_name'].isin(filenames_test)]
-    y_test = X_test['yi']
-    X_train_matrix = X_train[selected_feats]
-    X_test_matrix = X_test[selected_feats]
-    model.fit(X_train_matrix, y_train)
-    y_pred = [x[1] for x in model.predict_proba(X_test_matrix)]
+    y = community_df['yi']
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, shuffle=True)
+    X_train_nums = X_train[selected_feats]
+    X_train_dummies = X_train[categorial_feats]
+    X_test_nums = X_test[selected_feats]
+    X_test_dummies = X_test[categorial_feats]
+    X_train_dummies_mat = pd.get_dummies(X_train_dummies)
+    X_test_dummies_mat = pd.get_dummies(X_test_dummies)
+    X_test_dummies_mat = pd.DataFrame(X_test_dummies_mat, columns=X_train_dummies_mat.columns)
+    X_train_dummies_mat.fillna(-1, inplace=True)
+    X_test_dummies_mat.fillna(-1, inplace=True)
+    X_train = pd.concat([X_train_nums, X_train_dummies_mat], axis=1, sort=False)
+    X_test = pd.concat([X_test_nums, X_test_dummies_mat], axis=1, sort=False)
+    # print(f"shapes: {X_train_nums.shape, X_train_dummies_mat.shape, X_train.shape}")
+    # print(f"shapes: {X_test_nums.shape, X_test_dummies_mat.shape, X_test.shape}")
+    model.fit(X_train, y_train)
+    y_pred = [x[1] for x in model.predict_proba(X_test)]
     hard_y_pred = [int(x > threshold) for x in y_pred]
     y_test = list(y_test.values)
 
-    X_test['hard_y_pred'] = hard_y_pred
     cm_examples = get_confusion_matrix_examples(X_test, community_df, hard_y_pred, y_test)
-
-    X_test_seq_data = X_test[['cand_match', 'umls_match', 'yi', 'file_name', 'match_eng', 'semantic_type', 'curr_occurence_offset', 'match_6_window']]
 
     acc, cm, f1_score_score, precision_val, recall_score_score, roc_auc \
         = get_measures_for_y_test_and_hard_y_pred(hard_y_pred, y_pred, y_test)
     initial_results = {'f1_score': f1_score_score, 'roc_auc': roc_auc, 'acc': acc, 'precision': precision_val,
                        'recall': recall_score_score, 'community': community, 'model': model,
-                       'confusion_matrix': cm, 'cm_examples': cm_examples, 'X_test_seq_data': X_test_seq_data}
-
+                       'confusion_matrix': cm, 'cm_examples': cm_examples}
     extra_false_negative = int(extra_fns * test_size)
 
     hard_y_pred = hard_y_pred + [0 for _ in range(extra_false_negative)]

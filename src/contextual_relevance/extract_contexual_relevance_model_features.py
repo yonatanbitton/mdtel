@@ -7,12 +7,14 @@ init_program = 'initialize_training_dataset.py'
 
 feature_extraction_script_names = ['extract_count_features.py',
                 'extract_language_model_feats.py',
-                'extract_relatedness_features.py',
+               # 'extract_language_model_feats_with_cache.py',
+               'extract_relatedness_features.py',
                 'extract_yap_features.py']
+
+run_merge_programs = False
 
 merge_programs = ['merge_extracted_feats.py',
                 'add_labels_doccano_by_offset.py']
-
 
 init_cmd = f'python {scripts_path + os.sep + init_program}'
 print(f"Running init cmd: {init_cmd}...")
@@ -36,11 +38,13 @@ print(f"Waiting for concurrent programs...\n\n")
 
 for p in all_processes: p.wait()
 
-print(f"Concurrent programs done, running merge & all labels programs...\n\n")
+print(f"Concurrent programs done.\n\n")
 
-merge_cmds = [f'python {scripts_path + os.sep + fname}' for fname in merge_programs]
-for cmd in merge_cmds:
-    print(f"Running {cmd}")
-    os.system(cmd)
+if run_merge_programs:
+    print('running merge & all labels programs...\n\n')
+    merge_cmds = [f'python {scripts_path + os.sep + fname}' for fname in merge_programs]
+    for cmd in merge_cmds:
+        print(f"Running {cmd}")
+        os.system(cmd)
 
 print(f"Finished running all programs")

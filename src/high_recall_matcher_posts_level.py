@@ -3,6 +3,7 @@ import os
 import re
 import sys
 from collections import Counter
+from copy import deepcopy
 from operator import itemgetter
 
 import pandas as pd
@@ -19,7 +20,8 @@ sys.path.append(module_path)
 from config import *
 
 input_dir = data_dir + r"high_recall_matcher\posts\lemlda"
-umls_df_data_path = data_dir + r"high_recall_matcher\HEB_TO_ENG_DISORDERS_CHEMICALS_utf-8-sig.csv"
+# umls_df_data_path = data_dir + r"high_recall_matcher\HEB_TO_ENG_DISORDERS_CHEMICALS_utf-8-sig.csv"
+umls_df_data_path = data_dir + r"high_recall_matcher\mrconso_disorders_chemicals_merged.csv"
 output_dir = data_dir + r"high_recall_matcher\output"
 
 if DEBUG:
@@ -33,9 +35,9 @@ def main():
     heb_searcher = Searcher(heb_db, CosineMeasure())
     eng_searcher = Searcher(eng_db, CosineMeasure())
 
-    # handle_community(SCLEROSIS, heb_searcher, eng_searcher, umls_data)
+    handle_community(SCLEROSIS, heb_searcher, eng_searcher, umls_data)
     # handle_community(DIABETES, heb_searcher, eng_searcher, umls_data)
-    handle_community(DEPRESSION, heb_searcher, eng_searcher, umls_data)
+    # handle_community(DEPRESSION, heb_searcher, eng_searcher, umls_data)
 
     print("Done")
 
@@ -48,8 +50,10 @@ def handle_community(chosen_community, heb_searcher, eng_searcher, umls_data):
     number_of_posts = len(community_df)
 
     for idx, (row_idx, row) in enumerate(community_df.iterrows()):
-
+        if row['file_name'] != 15:
+            continue
         msg_matches_found = get_english_and_hebrew_matches(eng_searcher, heb_searcher, row, umls_data)
+
         all_matches_found.append(json.dumps(msg_matches_found, ensure_ascii=False))
         print_stats(idx, row, msg_matches_found, number_of_posts)
 
@@ -72,7 +76,8 @@ def get_english_and_hebrew_matches(eng_searcher, heb_searcher, row, umls_data):
     english_matches_found = get_english_matches(eng_searcher, row, umls_data)
     all_hebrew_matches_found = get_hebrew_matches(heb_searcher, row, umls_data)
 
-    msg_matches_found = list_union(all_hebrew_matches_found, english_matches_found, post_key='union')
+    # msg_matches_found = list_union(all_hebrew_matches_found, english_matches_found, post_key='union')
+    msg_matches_found = list_union_by_match_occs(all_hebrew_matches_found, english_matches_found)
 
     return msg_matches_found
 
@@ -80,8 +85,8 @@ def get_english_and_hebrew_matches(eng_searcher, heb_searcher, row, umls_data):
 def get_hebrew_matches(heb_searcher, row, umls_data):
     all_hebrew_matches_found = []
 
-    for hebrew_key in ['tokenized_text', 'segmented_text', 'lemmas']:
-    # for hebrew_key in ['segmented_text']:
+    # for hebrew_key in ['post_txt', 'tokenized_text', 'segmented_text', 'lemmas']:
+    for hebrew_key in ['segmented_text']:
         msg_key_txt = row[hebrew_key]
         matches_found_for_key = find_umls_match_fast(msg_key_txt, heb_searcher, row, hebrew_key)
 
@@ -89,9 +94,9 @@ def get_hebrew_matches(heb_searcher, row, umls_data):
             # matches_found_for_key = take_highest_sim_matches(matches_found_for_key, umls_data)
             matches_found_for_key = add_heb_umls_data(matches_found_for_key, umls_data, hebrew_key)
 
-        all_hebrew_matches_found = list_union_by_match_occs(all_hebrew_matches_found, matches_found_for_key, hebrew_key)
-        # all_hebrew_matches_found += matches_found_for_key
+        all_hebrew_matches_found = list_union_by_match_occs(all_hebrew_matches_found, matches_found_for_key)
 
+    # all_hebrew_matches_found = get_matches_with_full_occs(all_hebrew_matches_found)
     return all_hebrew_matches_found
 
 def get_english_matches(eng_searcher, row, umls_data):
@@ -127,7 +132,22 @@ def find_umls_match_fast(msg_txt, searcher, row, msg_key_lang):
                 if is_good_match(sim, umls_match, i, up_similarity_threshold):
                     add_match_data(all_matches_found, cand_term, msg_key_lang, row, sim, umls_match)
 
-    return all_matches_found
+    all_matches_found_with_full_occs = get_matches_with_full_occs(all_matches_found)
+    return all_matches_found_with_full_occs
+
+
+def get_matches_with_full_occs(all_matches_found):
+    all_matches_found_with_full_occs = deepcopy(all_matches_found)
+    for m in all_matches_found:
+        all_occs = deepcopy(m['all_match_occ'])
+        curr_occ = m['curr_occurence_offset']
+        all_occs.remove(curr_occ)
+        for other_occ in all_occs:
+            m_copy = deepcopy(m)
+            m_copy['curr_occurence_offset'] = other_occ
+            if m_copy not in all_matches_found:
+                all_matches_found_with_full_occs.append(m_copy)
+    return all_matches_found_with_full_occs
 
 
 def add_match_data(all_matches_found, cand_term, msg_key_lang, row, sim, umls_match):
@@ -148,8 +168,8 @@ def add_match_data(all_matches_found, cand_term, msg_key_lang, row, sim, umls_ma
 
 
 def get_cand_occ_in_text(all_matches_found, cand_term, msg_key_lang, row):
-    if msg_key_lang == 'lemmas':
-        all_match_occ, cand_match_occurence_in_txt, curr_occurence_offset = get_occ_by_similarity(cand_term, row, lemma=True)
+    if msg_key_lang in ['lemmas', 'segmented_text']:
+        all_match_occ, cand_match_occurence_in_txt, curr_occurence_offset = get_occ_by_similarity(cand_term, row, msg_key_lang)
     else:
         cand_match_occurence_in_txt = cand_term
         curr_occurence_offset, all_match_occ = find_occurence_offset(all_matches_found, cand_match_occurence_in_txt,
@@ -165,11 +185,11 @@ def term_is_exception(i, cand_term):
     return i == 1 and cand_term in general_exceptions and len(cand_term) in [4, 7]
 
 
-def get_occ_by_similarity(cand_term, row, lemma=False):
-    if lemma:
+def get_occ_by_similarity(cand_term, row, msg_key_lang):
+    if msg_key_lang == 'lemma':
         match_occs_in_txt = find_possible_cand_matches_occurence_in_txt_by_lemma(cand_term, row)
     else:
-        match_occs_in_txt = find_possible_cand_matches_occurence_in_txt_by_words(cand_term, row)
+        match_occs_in_txt = find_possible_cand_matches_occurence_in_txt_by_key(cand_term, row, msg_key_lang)
 
     all_match_occ, cand_match_occurence_in_txt, curr_occurence_offset = None, None, None
 
@@ -229,9 +249,21 @@ def find_possible_cand_matches_occurence_in_txt_by_lemma(cand_term, row):
                 match_occs_in_txt.append(words_cand)
     return match_occs_in_txt
 
-def find_possible_cand_matches_occurence_in_txt_by_words(cand_term, row):
+
+def find_possible_cand_matches_occurence_in_txt_by_segmented_text(cand_term, row):
     match_occs_in_txt = []
-    tokenized_words_lst = row['tokenized_text'].split(" ")
+    segmented_text_lst = row['segmented_text'].split(" ")
+    cand_term_len = len(cand_term.split(" "))
+    for i in range(len(segmented_text_lst) - cand_term_len + 1):
+        relevant_words = segmented_text_lst[i:i + cand_term_len]
+        words_cand = " ".join(relevant_words)
+        if words_similarity(words_cand, cand_term) > SIMILARITY_THRESHOLD:
+            match_occs_in_txt.append(words_cand)
+    return match_occs_in_txt
+
+def find_possible_cand_matches_occurence_in_txt_by_key(cand_term, row, segmented_text):
+    match_occs_in_txt = []
+    tokenized_words_lst = row[segmented_text].split(" ")
     cand_term_len = len(cand_term.split(" "))
     for i in range(len(tokenized_words_lst) - cand_term_len + 1):
         relevant_words = tokenized_words_lst[i:i + cand_term_len]
@@ -262,7 +294,7 @@ def find_occurence_offset(all_matches_found, cand_match_occurence_in_txt, row, m
 def prepare_msg_ngrams(msg_txt):
     msg_txt = msg_txt.replace(".", " ")
     msg_words = msg_txt.split(" ")
-    msg_words = [w for w in msg_words if w != "" and w != " " and len(w) >= 2]
+    msg_words = [w for w in msg_words if w != "" and w != " " and (len(w) >= 2 or w.isnumeric())]
     if len(msg_words) < 3:
         msg_words.append("PAD")
     ngrams = list(zip(*[msg_words[i:] for i in range(NUMBER_OF_GRAMS)]))
@@ -278,13 +310,12 @@ def prepare_msg_ngrams(msg_txt):
 def get_umls_data():
     umls_data = pd.read_csv(umls_df_data_path)
     print(f"Got UMLS data at length {len(umls_data)}")
-    umls_data = umls_data[~umls_data['STR'].isna()]
-    umls_data = umls_data[umls_data['LAT'].apply(lambda x: x=='ENG' or str(x) == 'nan' or x == ' ')]
-
-    umls_data.sort_values(by=['HEB'], inplace=True)
-    umls_data = umls_data[umls_data['STR'].apply(lambda x: len(x) > 4)]
-    umls_data = umls_data[umls_data['HEB'].apply(lambda x: len(x) > 3)]
-    umls_data.reset_index(inplace=True)
+    # umls_data = umls_data[~umls_data['STR'].isna()]
+    # umls_data = umls_data[umls_data['LAT'].apply(lambda x: x=='ENG' or str(x) == 'nan' or x == ' ')]
+    # umls_data.sort_values(by=['HEB'], inplace=True)
+    # umls_data = umls_data[umls_data['STR'].apply(lambda x: len(x) > 4)]
+    # umls_data = umls_data[umls_data['HEB'].apply(lambda x: len(x) > 3)]
+    # umls_data.reset_index(inplace=True)
 
     heb_umls_list = list(umls_data['HEB'].values)
     eng_umls_list = list(umls_data[STRING_COLUMN].values)
@@ -323,7 +354,7 @@ def take_only_posts_which_has_labels(chosen_community, community_df):
     return community_df
 
 
-def list_union_by_match_occs(all_hebrew_matches_found, matches_found_for_key, post_key):
+def list_union_by_match_occs(all_hebrew_matches_found, matches_found_for_key):
     for d in matches_found_for_key:
         all_matches_with_same_umls = [m for m in all_hebrew_matches_found if m['umls_match'] == d['umls_match']]
         if not curr_match_span_intersects_with_existing_matches(d, all_matches_with_same_umls):
@@ -333,25 +364,15 @@ def list_union_by_match_occs(all_hebrew_matches_found, matches_found_for_key, po
 
 def curr_match_span_intersects_with_existing_matches(d, all_matches_with_same_umls):
     curr_occurence_offset = d['curr_occurence_offset']
+    end_offset = curr_occurence_offset + len(d['cand_match'])
     curr_match_intersects = False
     for m in all_matches_with_same_umls:
-        if curr_occurence_offset is None \
-                or m['curr_occurence_offset'] is None \
-                or type(curr_occurence_offset) == str\
-                or type(m['curr_occurence_offset']) == str:
-            continue
-        if abs(curr_occurence_offset - m['curr_occurence_offset']) <= 2:
+        m_start_offset = m['curr_occurence_offset']
+        m_end_offset = m_start_offset + len(m['cand_match'])
+        if abs(curr_occurence_offset - m_start_offset) <= 2 and abs(end_offset - m_end_offset) <= 2:
             curr_match_intersects = True
             break
     return curr_match_intersects
-
-
-def list_union(all_hebrew_matches_found, matches_found_for_key, post_key):
-    for d in matches_found_for_key:
-        all_existing_umls_matches = [m['umls_match'] for m in all_hebrew_matches_found]
-        if d['umls_match'] not in all_existing_umls_matches:
-            all_hebrew_matches_found.append(d)
-    return all_hebrew_matches_found
 
 
 def print_stats(idx, row, msg_matches_found, number_of_posts):

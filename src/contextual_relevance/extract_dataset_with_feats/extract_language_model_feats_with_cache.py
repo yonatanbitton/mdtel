@@ -36,20 +36,34 @@ def get_ngram_feats(row, ngram_model, n=2):
 
 
 
-def handle_community(community, ulmfit_model, ngram_model):
+def handle_community(community, ulmfit_model, ngram_model, model):
     print(f"Language model extractor: community: {community}")
     df = pd.read_csv(initialized_trainig_dataset_dir + os.sep + community + ".csv")
+    fpath = output_dir + os.sep + community + '_output.csv'
+    cache_df = pd.read_csv(fpath)
 
     preds_10_window = []
     preds_6_window = []
     preds_3_window = []
     preds_2_window = []
 
+    items_with_cache = 0
+    items_without_cache = 0
+
     for row_idx, row in df.iterrows():
+        p_10_window, p_6_window, p_3_window, p_2_window, items_with_cache = get_from_cache(cache_df, items_with_cache, row)
 
-        p_2_window = get_ngram_feats(row, ngram_model)
+        if (p_10_window, p_6_window, p_3_window, p_2_window) == (None, None, None, None):
+            items_without_cache += 1
+            if model:
+                p_2_window = get_ngram_feats(row, ngram_model)
+                p_10_window, p_6_window, p_3_window = get_ulmfit_feats(row, ulmfit_model)
+            else:
+                p_10_window = None
+                p_6_window = None
+                p_3_window = None
+                p_2_window = None
 
-        p_10_window, p_6_window, p_3_window = get_ulmfit_feats(row, ulmfit_model)
 
         preds_2_window.append(p_2_window)  # Ngram
 
@@ -62,8 +76,32 @@ def handle_community(community, ulmfit_model, ngram_model):
     df['pred_3_window'] = preds_3_window
     df['pred_2_window'] = preds_2_window
 
-    fpath = output_dir + os.sep + community + '_output.csv'
-    df.to_csv(fpath, index=False, encoding='utf-8-sig')
+    print(f"items_with_cache: {items_with_cache}, items_without_cache: {items_without_cache} ({round((items_without_cache / (items_without_cache + items_with_cache))*100, 1)}%)")
+
+    if model:
+        df.to_csv(fpath, index=False, encoding='utf-8-sig')
+
+
+def get_from_cache(cache_df, items_with_cache, row):
+    p_10_window, p_6_window, p_3_window, p_2_window = None, None, None, None
+    file_name_df = cache_df[cache_df['file_name'] == row['file_name']]
+    match_in_cand_match = file_name_df[file_name_df['cand_match'] == row['cand_match']]
+    if len(match_in_cand_match) == 1:
+        relevant_row = match_in_cand_match.iloc[0]
+    else:
+        match_in_10_window = match_in_cand_match[match_in_cand_match['match_10_window'] == row['match_10_window']]
+        if len(match_in_10_window) == 1 and match_in_10_window.iloc[0]['curr_occurence_offset'] == row['curr_occurence_offset']:
+                relevant_row = match_in_10_window.iloc[0]
+        else:
+            return p_10_window, p_6_window, p_3_window, p_2_window, items_with_cache
+
+    items_with_cache += 1
+    p_10_window = relevant_row['pred_10_window']
+    p_6_window = relevant_row['pred_6_window']
+    p_3_window = relevant_row['pred_3_window']
+    p_2_window = relevant_row['pred_2_window']
+    return p_10_window, p_6_window, p_3_window, p_2_window, items_with_cache
+
 
 def dd2():
     return 0
@@ -100,10 +138,15 @@ def get_ulmfit_model():
 
 
 if __name__ == '__main__':
-    ulmfit_model, ngram_model = get_language_models()
+    model = False
+    print(f"Model: {model}")
 
-    handle_community('depression', ulmfit_model, ngram_model)
-    handle_community('diabetes', ulmfit_model, ngram_model)
-    handle_community('sclerosis', ulmfit_model, ngram_model)
+    if model:
+        ulmfit_model, ngram_model = get_language_models()
+    else:
+        ulmfit_model, ngram_model = None, None
 
+    handle_community('sclerosis', ulmfit_model, ngram_model, model)
+    handle_community('diabetes', ulmfit_model, ngram_model, model)
+    handle_community('depression', ulmfit_model, ngram_model, model)
     print("Language model extractor - Done.")

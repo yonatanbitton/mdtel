@@ -30,7 +30,7 @@ def handle_community(community):
     yap_cols = ['dep_part', 'gen', 'pos', 'tense']
     all_final_cols = joint_cols + count_cols + lm_cols + relatedness_cols + yap_cols
 
-    idx_col = 'match_occurence_idx_in_txt_words'
+    idx_col = 'curr_occurence_offset'
     # print(f"Len before: {len(initialized_training_dataset), len(count_features), len(lm_features), len(relatedness_features), len(yap_features)}")
 
     all_rows = []

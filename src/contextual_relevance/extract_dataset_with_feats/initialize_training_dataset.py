@@ -125,7 +125,8 @@ class WindowsMaker:
                               'tokenized_text': txt, 'match_3_window': match_3_window,
                               'match_6_window': match_6_window, 'match_10_window': match_10_window,
                               'match_tui': match['match_tui'], 'semantic_type': match['semantic_type'],
-                              'all_match_occ': match['all_match_occ'], 'curr_occurence_offset': match['curr_occurence_offset']}
+                              'all_match_occ': match['all_match_occ'], 'curr_occurence_offset': match['curr_occurence_offset'],
+                              'post_txt': row['post_txt']}
                 train_instances.append(match_data)
 
         df = pd.DataFrame(train_instances)
