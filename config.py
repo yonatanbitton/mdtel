@@ -67,4 +67,4 @@ UP_MULTI_WORD_SIMILARITY_THRESHOLD = 0.90
 DIABETES, SCLEROSIS, DEPRESSION = 'diabetes', 'sclerosis', 'depression'
 NUMBER_OF_GRAMS = 3
 STRING_COLUMN = 'STR'
-number_of_posts_needed = {'sclerosis': 265, 'diabetes': 266, 'depression': 271}
+number_of_posts_needed = {'sclerosis': 264, 'diabetes': 262, 'depression': 265}

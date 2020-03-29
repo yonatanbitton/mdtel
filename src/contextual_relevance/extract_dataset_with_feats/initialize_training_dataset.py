@@ -198,6 +198,12 @@ def handle_community(community):
     else:
         df = pd.read_csv(input_dir + os.sep + community + ".csv")
 
+    df['stripped_txt'] = df['post_txt'].apply(lambda x: x.strip())
+    len_before_drop = len(df)
+    df = df.drop_duplicates(subset=['stripped_txt'])
+
+    print(f"Len before drop: {len_before_drop}, after: {len(df)}")
+
     windows_maker = WindowsMaker()
     df = windows_maker.go(df)
 
@@ -208,8 +214,8 @@ def handle_community(community):
 
 if __name__ == '__main__':
     print("Initializing training dataset ...")
-    handle_community('diabetes')
-    handle_community('sclerosis')
     handle_community('depression')
+    handle_community('sclerosis')
+    handle_community('diabetes')
 
     print("Training dataset initialized.\n\n")

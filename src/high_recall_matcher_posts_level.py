@@ -20,14 +20,22 @@ sys.path.append(module_path)
 from config import *
 
 input_dir = data_dir + r"high_recall_matcher\posts\lemlda"
-# umls_df_data_path = data_dir + r"high_recall_matcher\HEB_TO_ENG_DISORDERS_CHEMICALS_utf-8-sig.csv"
 umls_df_data_path = data_dir + r"high_recall_matcher\mrconso_disorders_chemicals_merged.csv"
 output_dir = data_dir + r"high_recall_matcher\output"
 
+CUILESS = True
+cuiless_dir = data_dir + r"manual_labeled_v2\items_not_in_umls"
+acronyms_dir = data_dir + r"manual_labeled_v2\acronyms"
+
+DEBUG = False
+post_num = 366
+debugging_term = 'סרטן הפרוסטטה'
+
 if DEBUG:
-    print(f"*** DEBUG MODE: Taking 20 posts only ***")
+    print(f"*** DEBUG MODE: post_num: {post_num}, debugging_term: {debugging_term} ***")
 else:
     print(f"Debug == False. Might take some time.")
+
 
 def main():
     heb_db, eng_db, umls_data = get_umls_data()
@@ -35,9 +43,9 @@ def main():
     heb_searcher = Searcher(heb_db, CosineMeasure())
     eng_searcher = Searcher(eng_db, CosineMeasure())
 
-    handle_community(SCLEROSIS, heb_searcher, eng_searcher, umls_data)
+    # handle_community(SCLEROSIS, heb_searcher, eng_searcher, umls_data)
     # handle_community(DIABETES, heb_searcher, eng_searcher, umls_data)
-    # handle_community(DEPRESSION, heb_searcher, eng_searcher, umls_data)
+    handle_community(DEPRESSION, heb_searcher, eng_searcher, umls_data)
 
     print("Done")
 
@@ -50,10 +58,12 @@ def handle_community(chosen_community, heb_searcher, eng_searcher, umls_data):
     number_of_posts = len(community_df)
 
     for idx, (row_idx, row) in enumerate(community_df.iterrows()):
-        if row['file_name'] != 15:
-            continue
+        if DEBUG:
+            if row['file_name'] != post_num: # 14
+                continue
         msg_matches_found = get_english_and_hebrew_matches(eng_searcher, heb_searcher, row, umls_data)
-
+        if DEBUG:
+            print(msg_matches_found)
         all_matches_found.append(json.dumps(msg_matches_found, ensure_ascii=False))
         print_stats(idx, row, msg_matches_found, number_of_posts)
 
@@ -75,7 +85,6 @@ def get_english_and_hebrew_matches(eng_searcher, heb_searcher, row, umls_data):
         return []
     english_matches_found = get_english_matches(eng_searcher, row, umls_data)
     all_hebrew_matches_found = get_hebrew_matches(heb_searcher, row, umls_data)
-
     # msg_matches_found = list_union(all_hebrew_matches_found, english_matches_found, post_key='union')
     msg_matches_found = list_union_by_match_occs(all_hebrew_matches_found, english_matches_found)
 
@@ -85,8 +94,8 @@ def get_english_and_hebrew_matches(eng_searcher, heb_searcher, row, umls_data):
 def get_hebrew_matches(heb_searcher, row, umls_data):
     all_hebrew_matches_found = []
 
-    # for hebrew_key in ['post_txt', 'tokenized_text', 'segmented_text', 'lemmas']:
-    for hebrew_key in ['segmented_text']:
+    for hebrew_key in ['post_txt', 'tokenized_text', 'segmented_text', 'lemmas']:
+    # for hebrew_key in ['segmented_text']:
         msg_key_txt = row[hebrew_key]
         matches_found_for_key = find_umls_match_fast(msg_key_txt, heb_searcher, row, hebrew_key)
 
@@ -100,7 +109,7 @@ def get_hebrew_matches(heb_searcher, row, umls_data):
     return all_hebrew_matches_found
 
 def get_english_matches(eng_searcher, row, umls_data):
-    msg_eng_text = get_eng_text(row['tokenized_text'])
+    msg_eng_text = get_eng_text(row['post_txt'])
     english_matches_found = find_umls_match_fast(msg_eng_text, eng_searcher, row, msg_key_lang='english')
     if english_matches_found not in [set(), []]:
         english_matches_found = add_eng_umls_data(english_matches_found, umls_data, row)
@@ -108,6 +117,7 @@ def get_english_matches(eng_searcher, row, umls_data):
 
 def is_good_match(sim, word_match, i, similarity_threshold):
     return len(word_match) > 3 and sim > similarity_threshold and i == len(word_match.split(" "))
+
 
 
 def find_umls_match_fast(msg_txt, searcher, row, msg_key_lang):
@@ -128,9 +138,14 @@ def find_umls_match_fast(msg_txt, searcher, row, msg_key_lang):
             search_result = searcher.ranked_search(cand_term, low_similarity_threshold)
             if search_result != []:
                 cosine_sim, umls_match = search_result[0]  # Cosine-Sim. I can demand another sim
+                if DEBUG and umls_match == debugging_term:
+                    print("Here")
                 sim = words_similarity(umls_match, cand_term)
                 if is_good_match(sim, umls_match, i, up_similarity_threshold):
-                    add_match_data(all_matches_found, cand_term, msg_key_lang, row, sim, umls_match)
+                    all_matches_found = add_match_data(all_matches_found, cand_term, msg_key_lang, row, sim, umls_match)
+                    if DEBUG and umls_match == debugging_term:
+                        print("After")
+                        print(all_matches_found)
 
     all_matches_found_with_full_occs = get_matches_with_full_occs(all_matches_found)
     return all_matches_found_with_full_occs
@@ -151,7 +166,7 @@ def get_matches_with_full_occs(all_matches_found):
 
 
 def add_match_data(all_matches_found, cand_term, msg_key_lang, row, sim, umls_match):
-    all_match_occ, cand_match_occurence_in_txt, curr_occurence_offset = get_cand_occ_in_text(all_matches_found,
+    all_match_occ, cand_match_occ_in_key_txt, curr_occurence_offset = get_cand_occ_in_text(all_matches_found,
                                                                                              cand_term, msg_key_lang,
                                                                                              row)
     if all_match_occ is None:
@@ -161,24 +176,24 @@ def add_match_data(all_matches_found, cand_term, msg_key_lang, row, sim, umls_ma
         print(all_matches_found)
     else:
         result = {'cand_match': cand_term, 'umls_match': umls_match,
-                  'cand_match_occurence_in_txt': cand_match_occurence_in_txt,
+                  'cand_match_occ_in_key_txt': cand_match_occ_in_key_txt,
                   'sim': round(sim, 3), 'curr_occurence_offset': curr_occurence_offset,
                   'all_match_occ': all_match_occ, 'msg_key_lang': msg_key_lang}
         all_matches_found.append(result)
-
+    return all_matches_found
 
 def get_cand_occ_in_text(all_matches_found, cand_term, msg_key_lang, row):
-    if msg_key_lang in ['lemmas', 'segmented_text']:
-        all_match_occ, cand_match_occurence_in_txt, curr_occurence_offset = get_occ_by_similarity(cand_term, row, msg_key_lang)
+    if msg_key_lang == 'lemmas':
+        all_match_occ, cand_match_occ_in_key_txt, start_offset = get_occ_by_similarity(cand_term, row, msg_key_lang)
     else:
-        cand_match_occurence_in_txt = cand_term
-        curr_occurence_offset, all_match_occ = find_occurence_offset(all_matches_found, cand_match_occurence_in_txt,
+        cand_match_occ_in_key_txt = cand_term
+        start_offset, end_offset, all_match_occ = find_occurence_offset(all_matches_found, cand_match_occ_in_key_txt,
                                                                      row, msg_key_lang)
 
-        if (curr_occurence_offset, all_match_occ) == (None, None):
-            all_match_occ, cand_match_occurence_in_txt, curr_occurence_offset = get_occ_by_similarity(cand_term, row)
+        if (start_offset, all_match_occ) == (None, None):
+            all_match_occ, cand_match_occ_in_key_txt, start_offset = get_occ_by_similarity(cand_term, row, msg_key_lang)
 
-    return all_match_occ, cand_match_occurence_in_txt, curr_occurence_offset
+    return all_match_occ, cand_match_occ_in_key_txt, start_offset
 
 
 def term_is_exception(i, cand_term):
@@ -187,15 +202,17 @@ def term_is_exception(i, cand_term):
 
 def get_occ_by_similarity(cand_term, row, msg_key_lang):
     if msg_key_lang == 'lemma':
-        match_occs_in_txt = find_possible_cand_matches_occurence_in_txt_by_lemma(cand_term, row)
+        match_occs_in_key_txt = find_possible_cand_matches_occurence_in_txt_by_lemma(cand_term, row)
+    elif msg_key_lang == 'segmented_text':
+        match_occs_in_key_txt = find_possible_cand_matches_occurence_in_txt_segmented_text(cand_term, row)
     else:
-        match_occs_in_txt = find_possible_cand_matches_occurence_in_txt_by_key(cand_term, row, msg_key_lang)
+        match_occs_in_key_txt = find_possible_cand_matches_occurence_in_txt_by_key(cand_term, row, msg_key_lang)
 
-    all_match_occ, cand_match_occurence_in_txt, curr_occurence_offset = None, None, None
+    all_match_occ, cand_match_occ_in_key_txt, start_offset = None, None, None
 
-    if len(match_occs_in_txt) > 0:
+    if len(match_occs_in_key_txt) > 0:
         all_found_match_occs = {}
-        for occ in match_occs_in_txt:
+        for occ in match_occs_in_key_txt:
             match_occs = find_occs_offsets_in_txt(occ, cand_term, row['post_txt'])
             all_found_match_occs[occ] = match_occs
 
@@ -206,28 +223,28 @@ def get_occ_by_similarity(cand_term, row, msg_key_lang):
         if len(all_found_occs_lst) > 0:
 
             least_common_occ = get_least_common_item_from_lst(all_found_occs_lst)
-            curr_occurence_offset = least_common_occ
+            start_offset = least_common_occ
             dict_with_match = {k: v for k, v in all_found_match_occs.items() if least_common_occ in v}
-            cand_match_occurence_in_txt = list(dict_with_match.keys())[0]
+            cand_match_occ_in_key_txt = list(dict_with_match.keys())[0]
             all_match_occ = list(dict_with_match.values())[0]
 
-    return all_match_occ, cand_match_occurence_in_txt, curr_occurence_offset
+    return all_match_occ, cand_match_occ_in_key_txt, start_offset
 
 def get_least_common_item_from_lst(lst):
     vals = sorted(Counter(lst).items(), key=itemgetter(1), reverse=False)
     least_common_item_and_count = vals[0]
     return least_common_item_and_count[0]
 
-def find_occs_offsets_in_txt(cand_match_occurence_in_txt, cand_term, post_txt):
+def find_occs_offsets_in_txt(cand_match_occ_in_key_txt, cand_term, post_txt):
     txt_words = post_txt.split(" ")
-    cand_match_occurence_in_txt_len = len(cand_match_occurence_in_txt.split(" "))
+    cand_match_occ_in_key_txt_len = len(cand_match_occ_in_key_txt.split(" "))
     all_match_occ = []
     for i in range(len(txt_words)):
-        relevant_words = txt_words[i:i + cand_match_occurence_in_txt_len]
-        if len(relevant_words) > 1 and (relevant_words[1] == '' or relevant_words[1] == ' ') and len(txt_words) > i + cand_match_occurence_in_txt_len:
-                relevant_words.append(txt_words[i + cand_match_occurence_in_txt_len])
+        relevant_words = txt_words[i:i + cand_match_occ_in_key_txt_len]
+        if len(relevant_words) > 1 and (relevant_words[1] == '' or relevant_words[1] == ' ') and len(txt_words) > i + cand_match_occ_in_key_txt_len:
+                relevant_words.append(txt_words[i + cand_match_occ_in_key_txt_len])
         relevant_term = " ".join(relevant_words)
-        if words_similarity(relevant_term, cand_term) > 0.82 or words_similarity(relevant_term, cand_match_occurence_in_txt) > 0.82:
+        if words_similarity(relevant_term, cand_term) > 0.82 or words_similarity(relevant_term, cand_match_occ_in_key_txt) > 0.82:
             occurence_offset = post_txt.index(relevant_term)
             all_match_occ.append(occurence_offset)
 
@@ -250,20 +267,22 @@ def find_possible_cand_matches_occurence_in_txt_by_lemma(cand_term, row):
     return match_occs_in_txt
 
 
-def find_possible_cand_matches_occurence_in_txt_by_segmented_text(cand_term, row):
-    match_occs_in_txt = []
-    segmented_text_lst = row['segmented_text'].split(" ")
-    cand_term_len = len(cand_term.split(" "))
-    for i in range(len(segmented_text_lst) - cand_term_len + 1):
-        relevant_words = segmented_text_lst[i:i + cand_term_len]
-        words_cand = " ".join(relevant_words)
-        if words_similarity(words_cand, cand_term) > SIMILARITY_THRESHOLD:
-            match_occs_in_txt.append(words_cand)
-    return match_occs_in_txt
+def find_possible_cand_matches_occurence_in_txt_by_key(cand_term, row, text_type):
+    if text_type == 'english':
+        text_type = 'tokenized_text'
+    match_occs_in_key_txt = []
+    tokenized_words_lst = row[text_type].split(" ")
+    match_occs_in_key_txt = find_match_occ_for_cand_term_and_text(cand_term, match_occs_in_key_txt, tokenized_words_lst)
+    return match_occs_in_key_txt
 
-def find_possible_cand_matches_occurence_in_txt_by_key(cand_term, row, segmented_text):
+def find_possible_cand_matches_occurence_in_txt_segmented_text(cand_term, row):
     match_occs_in_txt = []
-    tokenized_words_lst = row[segmented_text].split(" ")
+    words_lst = [x for x in row['segmented_text'].split(" ") if len(x) > 1 or x.isdigit()]
+    match_occs_in_key_txt = find_match_occ_for_cand_term_and_text(cand_term, match_occs_in_txt, words_lst)
+    return match_occs_in_key_txt
+
+
+def find_match_occ_for_cand_term_and_text(cand_term, match_occs_in_txt, tokenized_words_lst):
     cand_term_len = len(cand_term.split(" "))
     for i in range(len(tokenized_words_lst) - cand_term_len + 1):
         relevant_words = tokenized_words_lst[i:i + cand_term_len]
@@ -272,30 +291,33 @@ def find_possible_cand_matches_occurence_in_txt_by_key(cand_term, row, segmented
             match_occs_in_txt.append(words_cand)
     return match_occs_in_txt
 
-
-def find_occurence_offset(all_matches_found, cand_match_occurence_in_txt, row, msg_key_lang):
+def find_occurence_offset(all_matches_found, cand_match_occ_in_key_txt, row, msg_key_lang):
     post_txt = row['post_txt']
     post_txt = post_txt.lower()
-    # all_match_occ = [m.start() for m in re.finditer(r"." + cand_match_occurence_in_txt, post_txt)]
-    all_match_occ = [m.start() for m in re.finditer(cand_match_occurence_in_txt, post_txt)]
+    # all_match_occ = [m.start() for m in re.finditer(r"." + cand_match_occ_in_key_txt, post_txt)]
+    all_start_match_occ = [m.start() for m in re.finditer(cand_match_occ_in_key_txt, post_txt)]
 
     curr_occurence = 0
     for m in all_matches_found:
-        if m['cand_match_occurence_in_txt'] == cand_match_occurence_in_txt:
+        if m['cand_match_occ_in_key_txt'] == cand_match_occ_in_key_txt:
             curr_occurence += 1
 
-    if all_match_occ == [] or len(all_match_occ) <= curr_occurence:
-        return None, None
+    if all_start_match_occ == [] or len(all_start_match_occ) <= curr_occurence:
+        return None, None, None
 
-    curr_occurence_offset = all_match_occ[curr_occurence]
-    return curr_occurence_offset, all_match_occ
+    start_offset = all_start_match_occ[curr_occurence]
+    end_offset = start_offset + len(cand_match_occ_in_key_txt)
+    return start_offset, end_offset, all_start_match_occ
 
 
 def prepare_msg_ngrams(msg_txt):
     msg_txt = msg_txt.replace(".", " ")
     msg_words = msg_txt.split(" ")
-    msg_words = [w for w in msg_words if w != "" and w != " " and (len(w) >= 2 or w.isnumeric())]
-    if len(msg_words) < 3:
+    msg_words = [w for w in msg_words if w != "" and w != " " and (len(w) >= 2 or w.isdigit())]
+    if len(msg_words) == 2:
+        msg_words.append("PAD")
+    elif len(msg_words) == 1:
+        msg_words.append("PAD")
         msg_words.append("PAD")
     ngrams = list(zip(*[msg_words[i:] for i in range(NUMBER_OF_GRAMS)]))
     if len(ngrams) > 0:
@@ -310,12 +332,15 @@ def prepare_msg_ngrams(msg_txt):
 def get_umls_data():
     umls_data = pd.read_csv(umls_df_data_path)
     print(f"Got UMLS data at length {len(umls_data)}")
-    # umls_data = umls_data[~umls_data['STR'].isna()]
-    # umls_data = umls_data[umls_data['LAT'].apply(lambda x: x=='ENG' or str(x) == 'nan' or x == ' ')]
-    # umls_data.sort_values(by=['HEB'], inplace=True)
-    # umls_data = umls_data[umls_data['STR'].apply(lambda x: len(x) > 4)]
-    # umls_data = umls_data[umls_data['HEB'].apply(lambda x: len(x) > 3)]
-    # umls_data.reset_index(inplace=True)
+
+    acronyms_df = pd.read_excel(acronyms_dir + os.sep + 'acronyms_data.xlsx')
+    acronyms_umls_df = get_df_with_umls_rows(acronyms_df, umls_data)
+    umls_data = pd.concat([umls_data, acronyms_umls_df])
+
+    if CUILESS:
+        cuiless_umls_df = get_cuiless_data(umls_data)
+        umls_data = pd.concat([umls_data, cuiless_umls_df])
+        print("Added CUILESS terms")
 
     heb_umls_list = list(umls_data['HEB'].values)
     eng_umls_list = list(umls_data[STRING_COLUMN].values)
@@ -331,6 +356,28 @@ def get_umls_data():
         eng_db.add(lower_eng_w)
 
     return heb_db, eng_db, umls_data
+
+
+def get_cuiless_data(umls_data):
+    cuiless_df = pd.read_excel(cuiless_dir + os.sep + "cuiless_terms.xlsx")
+    cuiless_umls_rows = []
+    for r_idx, r in cuiless_df.iterrows():
+        cuiless_umls_rows.append({'STR': r['terms'], 'STY': r['STY'], 'TUI': r['TUI']})
+    cuiless_umls_df = pd.DataFrame(cuiless_umls_rows, columns=umls_data.columns)
+    cuiless_umls_df['HEB'] = cuiless_umls_df['STR']
+    cuiless_umls_df.fillna('CUILESS', inplace=True)
+    return cuiless_umls_df
+
+
+def get_df_with_umls_rows(subset_df, umls_data):
+    subset_umls_rows = []
+    for r_idx, subset_row in subset_df.iterrows():
+        # print(r_idx, acronym_row['STR'])
+        umls_row = umls_data[umls_data['STR'] == subset_row['STR']].iloc[0]
+        umls_row['STR'] = subset_row['NAME']
+        subset_umls_rows.append(umls_row)
+    acronyms_umls_df = pd.DataFrame(subset_umls_rows)
+    return acronyms_umls_df
 
 
 def get_data(chosen_community):
@@ -395,7 +442,8 @@ def get_semantic_type(match_tui):
 def add_heb_umls_data(heb_matches, umls_data, hebrew_key):
     heb_matches_with_codes = []
     for match_d in heb_matches:
-        idx_of_match_in_df = umls_data['HEB'].searchsorted(match_d['umls_match'])
+        # idx_of_match_in_df = umls_data['HEB'].searchsorted(match_d['umls_match'])
+        idx_of_match_in_df = get_idx_of_match_in_umls(match_d, umls_data)
         match_cui = umls_data.iloc[idx_of_match_in_df]['CUI']
         match_tui = umls_data.iloc[idx_of_match_in_df]['TUI']
         semantic_type = get_semantic_type(match_tui)
@@ -409,11 +457,27 @@ def add_heb_umls_data(heb_matches, umls_data, hebrew_key):
         # heb_matches_with_codes.append((cand + "-" + word_match + " ( " + match_eng + " )" + " : " + str(sim), match_cui))
     return heb_matches_with_codes
 
+
+def get_idx_of_match_in_umls(match_d, umls_data):
+    possible_matches = umls_data[umls_data['HEB'] == match_d['umls_match']]
+    if len(possible_matches) == 1:
+        idx_of_match_in_df = possible_matches.index[0]
+    else:
+        possible_matches_pf = possible_matches[possible_matches['STT'] == 'PF']
+        if len(possible_matches_pf) == 0:
+            idx_of_match_in_df = possible_matches.index[0]
+        else:
+            idx_of_match_in_df = possible_matches_pf.index[0]
+    return idx_of_match_in_df
+
+
 def add_eng_umls_data(eng_matches, umls_data, row):
     eng_matches_with_codes = []
     for match_d in eng_matches:
         idx_of_match_in_df = umls_data[umls_data[STRING_COLUMN].apply(lambda x: x.lower() == match_d['umls_match'])].index[0]
         match_cui = umls_data.iloc[idx_of_match_in_df]['CUI']
+        if match_cui == 'CUILESS':
+            print(f'CUILESS MATCH: {match_d["umls_match"]}')
         match_tui = umls_data.iloc[idx_of_match_in_df]['TUI']
         semantic_type = get_semantic_type(match_tui)
         eng_d = {'cand_match': match_d['cand_match'], 'umls_match': match_d['umls_match'], 'sim': match_d['sim'],

@@ -15,6 +15,11 @@ calculated_relatedness_dir = data_dir + r"contextual_relevance\relatedness"
 
 output_dir = data_dir + r"contextual_relevance\relatedness\output"
 
+cuiless_dir = data_dir + r"manual_labeled_v2\items_not_in_umls"
+cuiless_df = pd.read_excel(cuiless_dir + os.sep + "cuiless_terms.xlsx")
+all_cuiless_terms = set(list(cuiless_df['STR']))
+print("Added CUILESS terms")
+
 yap = YapApi()
 ip = '127.0.0.1:8000'
 
@@ -28,7 +33,10 @@ def handle_community(community):
     all_relatedness = []
     for row_idx, row in comm_df.iterrows():
         eng_match = row['match_eng']
-        if eng_match not in calculated_relatedness_dict:
+
+        if eng_match in all_cuiless_terms:
+            relatedness = 1
+        elif eng_match not in calculated_relatedness_dict:
             splitted_term = eng_match.split("(")[0].strip()
             if splitted_term in calculated_relatedness_dict:
                 relatedness = float(calculated_relatedness_dict[splitted_term])

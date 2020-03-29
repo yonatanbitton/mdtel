@@ -4,7 +4,7 @@ from copy import deepcopy
 
 import pandas as pd
 
-from config import data_dir
+from config import data_dir, DISORDER, CHEMICAL_OR_DRUG
 from high_recall_matcher_posts_level import words_similarity
 
 labels_dir = data_dir + r'manual_labeled_v2\doccano'
@@ -14,10 +14,14 @@ posts_dir = data_dir + r"high_recall_matcher\posts\lemlda"
 
 SIMILARITY_THRESHOLD = 0.85
 
+label_numbers_for_each_community = {"diabetes": {9: DISORDER, 10: CHEMICAL_OR_DRUG},
+                                    "sclerosis": {7: DISORDER, 8: CHEMICAL_OR_DRUG},
+                                    "depression": {11: DISORDER , 12: CHEMICAL_OR_DRUG}}
+
 def main():
+    depression_entities_stats, depression_lines_stats = merge_comm(community='depression')
     sclerosis_entities_stats, sclerosis_lines_stats = merge_comm(community='sclerosis')
     diabetes_entities_stats, diabetes_lines_stats = merge_comm(community='diabetes')
-    depression_entities_stats, depression_lines_stats = merge_comm(community='depression')
 
     lines_stats = pd.DataFrame([sclerosis_lines_stats, diabetes_lines_stats, depression_lines_stats], index=['Sclerosis', 'Diabetes', 'Depression'])
     lines_stats.to_excel(labels_output + os.sep + "annotations_lines_stats.xlsx")
@@ -170,10 +174,22 @@ def get_stats(annotation_df):
     return merge_stats_ser, places_with_overlaps
 
 
+def transform_to_correct_label(community, annotations):
+    fixed_annotations = []
+    for m in annotations:
+        real_label = label_numbers_for_each_community[community][m['label']]
+        fixed_annotations.append({'term': m['term'], 'start_offset': m['start_offset'], 'end_offset': m['end_offset'], 'label': real_label})
+    return fixed_annotations
+
+
+
 def export_data(annotation_df, community, places_with_overlaps):
     print_overlaps(places_with_overlaps)
     wanted_cols = ['text', 'tokenized_text', 'file_name', 'merged_inner_and_outer']
     annotation_df = annotation_df[wanted_cols]
+
+    annotation_df['merged_inner_and_outer'] = annotation_df['merged_inner_and_outer'].apply(lambda annotations: transform_to_correct_label(community, annotations))
+
     annotation_df['merged_inner_and_outer'] = annotation_df['merged_inner_and_outer'].apply(
         lambda x: json.dumps(x, ensure_ascii=False))
     annotation_df.to_csv(labels_output + os.sep + community + "_labels.csv", index=False, encoding='utf-8-sig')
@@ -185,6 +201,8 @@ def export_data(annotation_df, community, places_with_overlaps):
     for c in ['yoav_overlaps_with_ora', 'ora_overlaps_with_yoav']:
         places_with_overlaps[c] = places_with_overlaps[c].apply(lambda x: json.dumps(x, ensure_ascii=False))
     places_with_overlaps.to_csv(labels_output + os.sep + community + "_overlaps.csv", index=False, encoding='utf-8-sig')
+
+
     annotation_df.to_csv(labels_output + os.sep + community + "_labels.csv", index=False, encoding='utf-8-sig')
 
 
@@ -288,6 +306,10 @@ def build_labels_df(comm_lines, community, posts_df):
             user_6_labels = []
             for ann in line_annotations:
                 annotated_term = line['text'][ann['start_offset']:ann['end_offset']]
+                annotated_term = annotated_term.replace('"', ' ').replace("'", ' ').replace("\n", " ")
+                if len(annotated_term.split(" ")) > 3: # Not taking terms longer then 3 words
+                    print(f'Filtering term: {annotated_term}')
+                    continue
                 term_d = {'term': annotated_term, 'start_offset': ann['start_offset'],
                           'end_offset': ann['end_offset'], 'label': ann['label']}
                 if ann['user'] == 5:

@@ -29,6 +29,9 @@ def parse_community(community):
 
     comm_df = pd.DataFrame(all_df_rows, columns=list(all_df_rows[0].keys()))
     comm_df['words_and_lemmas'] = comm_df['words_and_lemmas'].apply(lambda x: json.dumps(x, ensure_ascii=False))
+    len_before_drop_dups = len(comm_df)
+    comm_df = comm_df.drop_duplicates(subset=['post_txt', 'lemmas'])
+    print(f"Length before drop dups: {len_before_drop_dups}, after: {len(comm_df)}")
     comm_df.to_excel(output_dir + os.sep + community + "_posts.xlsx", index=False)
     print(f"Finished with community {community}")
 
@@ -128,9 +131,9 @@ def get_all_words_and_lemmas_from_df(dataframes):
 
 
 def main():
-    parse_community('sclerosis')
-    parse_community('diabetes')
     parse_community('depression')
+    # parse_community('sclerosis')
+    # parse_community('diabetes')
 
 if __name__ == '__main__':
     main()

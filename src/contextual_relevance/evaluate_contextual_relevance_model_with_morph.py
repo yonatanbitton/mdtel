@@ -58,8 +58,8 @@ def find_best_threshold_for_semantic_type(community, community_df, semantic_type
     semantic_type_df = community_df[community_df['semantic_type'] == semantic_type]
 
     selected_feats = ['match_freq', 'pred_3_window', 'pred_6_window', 'relatedness'] # 'dep_part', 'gen', 'pos', 'tense'
-    # categorial_feats = ['dep_part', 'gen', 'pos', 'tense']
-    categorial_feats = ['dep_part', 'pos']
+    categorial_feats = ['dep_part', 'gen', 'pos', 'tense']
+    # categorial_feats = ['dep_part', 'pos']
 
     best_joint_score = 0
     best_experiment_data = None
@@ -178,7 +178,7 @@ def get_results_for_threshold(community, community_df, n_estimators, selected_fe
     model = RandomForestClassifier(n_estimators=n_estimators)
     X = community_df
     y = community_df['yi']
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, shuffle=True)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, shuffle=False)
     X_train_nums = X_train[selected_feats]
     X_train_dummies = X_train[categorial_feats]
     X_test_nums = X_test[selected_feats]
@@ -277,7 +277,7 @@ if __name__ == '__main__':
         from config import data_dir, FINAL_LABELS_COL, CHEMICAL_OR_DRUG, DISORDER, DISORDERS_COL, CHEMICAL_OR_DRUGS_COL, \
     SIMILARITY_THRESHOLD
 
-    training_dataset_dir = data_dir + r"contextual_relevance\training_dataset_with_labels"
+    training_dataset_dir = data_dir + r"contextual_relevance\extracted_training_dataset"
     output_models_dir = data_dir + r"contextual_relevance\output_models"
     # labels_dir = data_dir + r'manual_labeled_v2\labels_dataframes'
     labels_dir = data_dir + r'manual_labeled_v2\doccano\merged_output'
