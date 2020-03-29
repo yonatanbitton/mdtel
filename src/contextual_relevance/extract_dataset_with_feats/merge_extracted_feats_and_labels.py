@@ -31,7 +31,7 @@ def handle_community(community):
     relatedness_cols = ['relatedness']
     yap_cols = ['dep_part', 'gen', 'pos', 'tense']
     label_col = ['yi']
-    all_final_cols = joint_cols + count_cols + lm_cols + relatedness_cols + yap_cols + label_col
+    all_final_cols = joint_cols + label_col + count_cols + lm_cols + relatedness_cols + yap_cols
 
     idx_col = 'curr_occurence_offset'
     # print(f"Len before: {len(initialized_training_dataset), len(count_features), len(lm_features), len(relatedness_features), len(yap_features)}")

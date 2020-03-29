@@ -8,7 +8,7 @@ from config import DISORDER, CHEMICAL_OR_DRUG
 
 def word_is_english(word):
     for c in word:
-        if 'a' <= c <= 'z' or 'A' <= c <= 'C':
+        if 'a' <= c <= 'z' or 'A' <= c <= 'Z':
             return True
     return False
 
@@ -101,8 +101,12 @@ class SequenceTagger:
         for idx, word_idx in enumerate(words_and_indices):
             if idx == 0:
                 label_for_w = 'B-' + semantic_type[0]
+                # label_for_w = semantic_type[0]
+
             else:
                 label_for_w = 'I-' + semantic_type[0]
+                # label_for_w = semantic_type[0]
+
             words_and_indices[word_idx] = {'w': words_and_indices[word_idx], 'tag': label_for_w}
         return words_and_indices
 

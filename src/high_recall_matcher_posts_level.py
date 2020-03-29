@@ -27,9 +27,9 @@ CUILESS = True
 cuiless_dir = data_dir + r"manual_labeled_v2\items_not_in_umls"
 acronyms_dir = data_dir + r"manual_labeled_v2\acronyms"
 
-DEBUG = False
-post_num = 366
-debugging_term = 'סרטן הפרוסטטה'
+DEBUG = True
+post_num = 338
+debugging_term = 'נרות'
 
 if DEBUG:
     print(f"*** DEBUG MODE: post_num: {post_num}, debugging_term: {debugging_term} ***")
@@ -44,8 +44,8 @@ def main():
     eng_searcher = Searcher(eng_db, CosineMeasure())
 
     # handle_community(SCLEROSIS, heb_searcher, eng_searcher, umls_data)
-    # handle_community(DIABETES, heb_searcher, eng_searcher, umls_data)
-    handle_community(DEPRESSION, heb_searcher, eng_searcher, umls_data)
+    handle_community(DIABETES, heb_searcher, eng_searcher, umls_data)
+    # handle_community(DEPRESSION, heb_searcher, eng_searcher, umls_data)
 
     print("Done")
 
@@ -342,6 +342,8 @@ def get_umls_data():
         umls_data = pd.concat([umls_data, cuiless_umls_df])
         print("Added CUILESS terms")
 
+    umls_data.reset_index(inplace=True)
+
     heb_umls_list = list(umls_data['HEB'].values)
     eng_umls_list = list(umls_data[STRING_COLUMN].values)
 
@@ -442,8 +444,13 @@ def get_semantic_type(match_tui):
 def add_heb_umls_data(heb_matches, umls_data, hebrew_key):
     heb_matches_with_codes = []
     for match_d in heb_matches:
+        if match_d['umls_match'] == 'בנרות':
+            print("בנרות")
         # idx_of_match_in_df = umls_data['HEB'].searchsorted(match_d['umls_match'])
         idx_of_match_in_df = get_idx_of_match_in_umls(match_d, umls_data)
+        if match_d['umls_match'] == 'בנרות':
+            print(umls_data.iloc[idx_of_match_in_df])
+
         match_cui = umls_data.iloc[idx_of_match_in_df]['CUI']
         match_tui = umls_data.iloc[idx_of_match_in_df]['TUI']
         semantic_type = get_semantic_type(match_tui)

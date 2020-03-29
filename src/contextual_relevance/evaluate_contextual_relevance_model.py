@@ -4,7 +4,7 @@ import os
 import sys
 from copy import deepcopy
 from statistics import mode
-
+import numpy as np
 import pandas as pd
 from seqeval.metrics import accuracy_score as seq_eval_acc
 from sklearn.ensemble import RandomForestClassifier
@@ -35,9 +35,10 @@ matches_per_community = {'diabetes': {'FN': Counter(), 'FP': Counter(), 'TP': Co
                           'sclerosis': {'FN': Counter(), 'FP': Counter(), 'TP': Counter()},
                           'depression': {'FN': Counter(), 'FP': Counter(), 'TP': Counter()}}
 
-filenames_per_community = {'diabetes': {'FN': defaultdict(list), 'FP': defaultdict(list)},
-                          'sclerosis': {'FN': defaultdict(list), 'FP': defaultdict(list)},
-                          'depression': {'FN': defaultdict(list), 'FP': defaultdict(list)}}
+filenames_per_community = {'diabetes': {'FN': defaultdict(list), 'FP': defaultdict(list), 'TP': defaultdict(list)},
+                          'sclerosis': {'FN': defaultdict(list), 'FP': defaultdict(list), 'TP': defaultdict(list)},
+                          'depression': {'FN': defaultdict(list), 'FP': defaultdict(list), 'TP': defaultdict(list)}
+                           }
 
 test_filenames_d = {'diabetes': {DISORDER: [], CHEMICAL_OR_DRUG: []},
                   'sclerosis': {DISORDER: [], CHEMICAL_OR_DRUG: []},
@@ -54,8 +55,9 @@ test_filenames_df[CHEMICAL_OR_DRUG] = test_filenames_df[CHEMICAL_OR_DRUG].apply(
 test_filenames_df['test_filenames'] = test_filenames_df.apply(lambda row: list(set(row[DISORDER] + row[CHEMICAL_OR_DRUG])), axis=1)
 test_filenames_df.set_index('Unnamed: 0', inplace=True)
 
+DebugEntity = namedtuple("T", "s_t i s e")
 
-n_most_common = 35
+n_most_common = 50
 
 
 def evaluate_community(community):
@@ -75,41 +77,64 @@ def evaluate_community(community):
                                                                                               CHEMICAL_OR_DRUG,
                                                                                               chemical_or_drugs_extra_fns)
 
-    token_level_partial, token_level_seq_eval_df, token_level_crf_df = \
-        token_evaluation(community, community_df, chemicals_experiment_data, disorders_experiment_data,labels_df)
+    test_labels_df = get_test_df_with_preds_and_annotations(chemicals_experiment_data, community, community_df,
+                                                            disorders_experiment_data, labels_df)
 
-    # print(f"{community} most common FN:")
-    # for k in matches_per_community[community]['FN'].most_common(n_most_common):
-    #     file_names_for_k = filenames_per_community[community]['FN'][k[0]]
-    #     print(file_names_for_k, k)
-    #
-    # print(f"{community} most common FP:")
-    # for k in matches_per_community[community]['FP'].most_common(n_most_common):
-    #     file_names_for_k = filenames_per_community[community]['FP'][k[0]]
-    #     print(file_names_for_k, k)
+    token_level_partial, token_level_seq_eval_df, token_level_crf_df, my_strict_token_eval_df, my_partial_token_eval_df = \
+        token_evaluation(community, test_labels_df)
 
-    my_eval_df = get_my_eval_df(community)
+    my_eval_df = get_my_eval_entity_level(community)
+
+
+    # print_errors(community, 'FP')
+    print_errors(community, 'FN')
 
     res_d = {DISORDER: disorders_community_score, CHEMICAL_OR_DRUG: chemicals_community_score,
              'token_level_partial': token_level_partial,
              'token_level_seq_eval_df': token_level_seq_eval_df,
              'token_level_crf_df': token_level_crf_df,
-             'my_eval_df': my_eval_df}
+             'my_eval_df': my_eval_df,
+             'my_strict_token_eval_df': my_strict_token_eval_df,
+             'my_partial_token_eval_df': my_partial_token_eval_df}
 
     return res_d
 
 
-def get_my_eval_df(community):
+def print_errors(community, error_type):
+    most_common_error = matches_per_community[community][error_type].most_common(n_most_common)
+    print(f"most_common {error_type}s: {community}, number: {len(matches_per_community[community][error_type])}")
+    for p in most_common_error:
+        print(p, filenames_per_community[community][error_type][p[0]])
+
+
+def get_test_df_with_preds_and_annotations(chemicals_experiment_data, community, community_df,
+                                           disorders_experiment_data, labels_df):
+    chemicals_seq_data, disorders_seq_data, grouped, test_filenames = get_data_from_training_and_testing(
+        chemicals_experiment_data, community_df, disorders_experiment_data)
+    test_labels_df = add_predictions_to_test_df(chemicals_seq_data, community, disorders_seq_data, grouped,
+                                                labels_df, test_filenames)
+    return test_labels_df
+
+
+def get_my_eval_entity_level(community):
     FP = sum(matches_per_community[community]['FP'].values())
     TP = sum(matches_per_community[community]['TP'].values())
     FN = sum(matches_per_community[community]['FN'].values())
+    my_cm = np.array([['X', FP],[FN, TP]])
+    print(f"community: {community} cm")
+    print(my_cm)
+    my_eval = get_metrics_based_on_fn_fp_tp(FN, FP, TP, community)
+    my_eval_df = pd.DataFrame([my_eval], index=[community])
+    return my_eval_df
+
+
+def get_metrics_based_on_fn_fp_tp(FN, FP, TP, community):
     P = TP + FP
     recall = round((TP / P), 2)
     precision = round((TP / (TP + FP)), 2)
     f1_score_val = round((2 * TP / (2 * TP + FP + FN)), 2)
     my_eval = {'recall': recall, 'precision': precision, 'f1_score': f1_score_val}
-    my_eval_df = pd.DataFrame([my_eval], index=[community])
-    return my_eval_df
+    return my_eval
 
 
 def get_data(community):
@@ -166,19 +191,14 @@ def get_entity_named_tuple(community, lst):
     return all_ents
 
 
-def token_evaluation(community, community_df, chemicals_experiment_data, disorders_experiment_data, labels_df):
-    chemicals_seq_data, disorders_seq_data, grouped, test_filenames = get_data_from_training_and_testing(
-        chemicals_experiment_data, community_df, disorders_experiment_data)
-
-    test_labels_df = prepare_test_df_with_all_data_fo_eval(chemicals_seq_data, community, disorders_seq_data, grouped,
-                                                           labels_df, test_filenames)
+def token_evaluation(community, test_labels_df):
 
     all_y_pred = list(test_labels_df['prediction_named_tuple'].values)
     all_y_true = list(test_labels_df['annotation_named_tuple'].values)
 
-    token_level_seq_eval_df, token_level_crf_df = token_level_eval(community, test_labels_df)
+    token_level_seq_eval_df, token_level_crf_df, my_strict_token_eval_df, my_partial_token_eval_df = token_level_eval(community, test_labels_df)
     token_level_partial = token_level_eval_by_partial_results(community, all_y_pred, all_y_true)
-    return token_level_partial, token_level_seq_eval_df, token_level_crf_df
+    return token_level_partial, token_level_seq_eval_df, token_level_crf_df, my_strict_token_eval_df, my_partial_token_eval_df
 
 
 def token_level_eval(community, test_labels_df):
@@ -194,14 +214,74 @@ def token_level_eval(community, test_labels_df):
     y_true = all_y_true
     y_pred = all_y_pred
 
+    my_strict_token_eval_df, my_partial_token_eval_df = calculate_my_token_level_eval(community, y_pred, y_true)
+
     seq_eval_scores = get_seqeval_metrics(y_pred, y_true)
     crf_scores = get_crf_metrics(y_pred, y_true)
 
     token_level_seq_eval_df = pd.DataFrame([seq_eval_scores], index=[community])
     token_level_crf_df = pd.DataFrame([crf_scores], index=[community])
 
-    return token_level_seq_eval_df, token_level_crf_df
+    return token_level_seq_eval_df, token_level_crf_df, my_strict_token_eval_df, my_partial_token_eval_df
 
+
+def calculate_my_token_level_eval(community, y_pred, y_true):
+    my_strict_token_eval_df = get_token_eval_metrics(community, y_pred, y_true, strict=True)
+    my_partial_token_eval_df = get_token_eval_metrics(community, y_pred, y_true)
+    return my_strict_token_eval_df, my_partial_token_eval_df
+
+
+def get_token_eval_metrics(community, y_pred, y_true, strict=False):
+    fns = {DISORDER: 0, CHEMICAL_OR_DRUG: 0}
+    fps = {DISORDER: 0, CHEMICAL_OR_DRUG: 0}
+    tps = {DISORDER: 0, CHEMICAL_OR_DRUG: 0}
+    semantic_types = [DISORDER, CHEMICAL_OR_DRUG]
+    for post_pred, post_true in list(zip(y_pred, y_true)):
+        post_fns, post_fps, post_tps = get_post_measures(post_pred, post_true, semantic_types, strict)
+        for semantic_type in semantic_types:
+            fns[semantic_type] += post_fns[semantic_type]
+            fps[semantic_type] += post_fps[semantic_type]
+            tps[semantic_type] += post_tps[semantic_type]
+    my_token_level_disorder_eval = get_metrics_based_on_fn_fp_tp(fns[DISORDER], fps[DISORDER], tps[DISORDER], community)
+    my_token_level_chemical_eval = get_metrics_based_on_fn_fp_tp(fns[CHEMICAL_OR_DRUG], fps[CHEMICAL_OR_DRUG],
+                                                                 tps[CHEMICAL_OR_DRUG], community)
+    my_token_eval_df = pd.DataFrame([my_token_level_disorder_eval, my_token_level_chemical_eval],
+                                    index=[DISORDER, CHEMICAL_OR_DRUG])
+    my_token_eval_df = my_token_eval_df.append(pd.Series(my_token_eval_df.mean(), name='Average'))
+    return my_token_eval_df
+
+
+def get_semantic_type_label(semantic_type):
+    return semantic_type[0]
+
+def get_post_measures(post_pred, post_true, semantic_types, strict):
+    post_fns = {DISORDER: 0, CHEMICAL_OR_DRUG: 0}
+    post_fps = {DISORDER: 0, CHEMICAL_OR_DRUG: 0}
+    post_tps = {DISORDER: 0, CHEMICAL_OR_DRUG: 0}
+    for semantic_type in semantic_types:
+        for token_pred, token_true in zip(post_pred, post_true):
+            token_true_is_of_semantic_type = get_semantic_type_label(semantic_type) in token_true
+            token_pred_is_of_semantic_type = get_semantic_type_label(semantic_type) in token_pred
+            if token_pred == 'O' and token_true == 'O':
+                pass
+            elif token_pred == 'O' and token_true_is_of_semantic_type:  # pred - O, true - C, false neg
+                post_fns[semantic_type] += 1
+            elif token_true == 'O' and token_pred_is_of_semantic_type:  # pred - C, true - O, false pos
+                post_fps[semantic_type] += 1
+            elif token_true_is_of_semantic_type and not token_pred_is_of_semantic_type:  # pred - C, true D, 1 hit 1 miss
+                post_fns[semantic_type] += 1
+                post_fps[semantic_type] += 1
+            else:
+                if strict:
+                    if token_pred == token_true:
+                        post_tps[semantic_type] += 1
+                    else:
+                        post_fns[semantic_type] += 1
+                        post_fps[semantic_type] += 1
+                else:
+                    if token_true_is_of_semantic_type and token_pred_is_of_semantic_type:
+                        post_tps[semantic_type] += 1
+    return post_fns, post_fps, post_tps
 
 def get_bio_for_row(annotation_tagger, pred_tagger, row):
     global matches_per_community
@@ -234,10 +314,13 @@ def get_seqeval_metrics(y_pred, y_true):
 
 def get_crf_metrics(y_pred, y_true):
     labels = ['B-D', 'I-D', 'B-C', 'I-C']
+    # labels = ['D', 'C']
+
     token_acc_score = round(metrics.flat_accuracy_score(y_true, y_pred), 2)
     token_recall_score = round(metrics.flat_recall_score(y_true, y_pred, average='weighted', labels=labels), 2)
     token_f1_score = round(metrics.flat_f1_score(y_true, y_pred, average='weighted', labels=labels), 2)
     token_precision_score = round(metrics.flat_precision_score(y_true, y_pred, average='weighted', labels=labels), 2)
+    report = metrics.flat_classification_report(y_true, y_pred, labels=labels)
     res_d = {'accuracy': token_acc_score, 'recall': token_recall_score, 'f1_score': token_f1_score,
              'precision': token_precision_score}
     return res_d
@@ -325,8 +408,8 @@ def token_level_eval_by_partial_results(community, all_y_pred, all_y_true):
     return res_df
 
 
-def prepare_test_df_with_all_data_fo_eval(chemicals_seq_data, community, disorders_seq_data, grouped, labels_df,
-                                          test_filenames):
+def add_predictions_to_test_df(chemicals_seq_data, community, disorders_seq_data, grouped, labels_df,
+                               test_filenames):
     labels_per_post = {}
     for idx, post_df in grouped:
         post_file_name = post_df['file_name'].iloc[0]
@@ -353,16 +436,20 @@ def prepare_test_df_with_all_data_fo_eval(chemicals_seq_data, community, disorde
     test_labels_df['predicted_not_annotated'] = test_labels_df.apply(lambda row: get_items_in_left_lst_but_not_in_right_lst(row['prediction_labels'], row[FINAL_LABELS_COL]), axis=1)
     test_labels_df['annotated_not_predicted'] = test_labels_df.apply(lambda row: get_items_in_left_lst_but_not_in_right_lst(row[FINAL_LABELS_COL], row['prediction_labels']), axis=1)
 
-    for predicted_and_annotated in test_labels_df['predicted_and_annotated'].values:
-        matches_per_community[community]['TP'] += Counter([m['term'] for m in predicted_and_annotated])
-
-    for annotated_not_predicted in test_labels_df['annotated_not_predicted'].values:
-        matches_per_community[community]['FN'] += Counter([m['term'] for m in annotated_not_predicted])
-
-    for predicted_not_annotated in test_labels_df['predicted_not_annotated'].values:
-        matches_per_community[community]['FP'] += Counter([m['term'] for m in predicted_not_annotated])
+    add_types_to_counter(community, 'FN', 'annotated_not_predicted', test_labels_df)
+    add_types_to_counter(community, 'FP', 'predicted_not_annotated', test_labels_df)
+    add_types_to_counter(community, 'TP', 'predicted_and_annotated', test_labels_df)
 
     return test_labels_df
+
+
+def add_types_to_counter(community, dict_key, row_type, test_labels_df):
+    for row_idx, row in test_labels_df.iterrows():
+        annotated_not_predicted = row[row_type]
+        file_name = row['file_name']
+        for t in annotated_not_predicted:
+            filenames_per_community[community][dict_key][t['term']].append(DebugEntity(file_name, t['label'], t['start_offset'], t['end_offset']))
+        matches_per_community[community][dict_key] += Counter([m['term'] for m in annotated_not_predicted])
 
 
 def get_data_from_training_and_testing(chemicals_experiment_data, community_df, disorders_experiment_data):
@@ -395,7 +482,7 @@ def get_labels_for_semantic_type(post_semantic_type_data):
 
 
 def get_best_experiment_data(community, best_experiment_data, semantic_type):
-    print_data = True
+    print_data = False
     if print_data:
         print(f"{semantic_type} Initial confusion matrix")
         print(best_experiment_data['initial_results']['confusion_matrix'])
@@ -616,9 +703,9 @@ def get_measures_for_y_test_and_hard_y_pred(hard_y_pred, y_pred, y_test):
 
 
 def main():
-    sclerosis_results = evaluate_community('sclerosis')
     diabetes_results = evaluate_community('diabetes')
     depression_results = evaluate_community('depression')
+    sclerosis_results = evaluate_community('sclerosis')
 
     test_filesnames_df = pd.DataFrame(test_filenames_d).T
     test_filesnames_df[CHEMICAL_OR_DRUG] = test_filesnames_df[CHEMICAL_OR_DRUG].apply(
@@ -638,12 +725,16 @@ def main():
 
     print_res_df(diabetes_results['my_eval_df'], sclerosis_results['my_eval_df'], depression_results['my_eval_df'], title="My eval performance")
 
+    print_res_df(diabetes_results['my_strict_token_eval_df'], sclerosis_results['my_strict_token_eval_df'], depression_results['my_strict_token_eval_df'], title="my_strict_token_eval_df")
+
+    print_res_df(diabetes_results['my_partial_token_eval_df'], sclerosis_results['my_partial_token_eval_df'], depression_results['my_partial_token_eval_df'], title="my_partial_token_eval_df")
+
     print("Done")
 
 
-def print_res_df(depression_score, diabetes_score, sclerosis_score, title):
+def print_res_df(diabetes_score, sclerosis_score, depression_score, title):
     print(title)
-    if title == 'Token level partial performance':
+    if title == 'Token level partial performance' or title == 'my_strict_token_eval_df' or title == 'my_partial_token_eval_df':
         print('diabetes_score')
         print(diabetes_score)
         print()

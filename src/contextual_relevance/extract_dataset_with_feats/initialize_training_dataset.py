@@ -96,6 +96,10 @@ class WindowsMaker:
         for row_idx, row in community_df.iterrows():
             if str(row['tokenized_text']) == 'nan':
                 continue
+
+            # if row['file_name'] != 425:
+            #     continue
+
             txt, txt_words = self.get_txt_words(row)
 
             most_specific_matches = self.get_most_specific_matches(row)
@@ -161,9 +165,15 @@ class WindowsMaker:
             if other_len > curr_len:
                 other_m_with_same_len_as_curr = " ".join(other_m['umls_match'].split(" ")[:curr_len])
                 if len(other_m['umls_match'].split(" ")[curr_len]) >= 3 and words_similarity(other_m_with_same_len_as_curr, m['umls_match']) > 0.88:
-                    other_span_contains_curr = self.does_other_span_contains_curr(m, other_m)
+                    other_span_contains_curr = self.does_other_span_contains_curr(m, other_m, row['file_name'])
                     if other_span_contains_curr:
                         return False
+                other_m_with_same_len_as_curr = " ".join(other_m['umls_match'].split(" ")[curr_len:])
+                if len(other_m['umls_match'].split(" ")[curr_len]) >= 3 and words_similarity(other_m_with_same_len_as_curr, m['umls_match']) > 0.88:
+                    other_span_contains_curr = self.does_other_span_contains_curr(m, other_m, row['file_name'])
+                    if other_span_contains_curr:
+                        return False
+
         return True
 
     def are_all_instances_of_term_are_contained(self, m, other_m, row):
@@ -178,14 +188,13 @@ class WindowsMaker:
         #     print(f"all_instances_of_term_are_contained: {m['umls_match']}, {other_m['umls_match']}")
         return all_instances_of_term_are_contained
 
-    def does_other_span_contains_curr(self, m, other_m):
+    def does_other_span_contains_curr(self, m, other_m, fname):
         s1 = m['curr_occurence_offset']
         s2 = other_m['curr_occurence_offset']
         e1 = s1 + len(m['cand_match'])
         e2 = s2 + len(other_m['cand_match'])
         if abs(s1 - s2) <= 2 or abs(e1 - e2) <= 2:
-        #     print(f"Found long that contains: {m['umls_match']}, {other_m['umls_match']}, {s1, e1}, {s2, e2}")
-            # return False
+            print(f"Found long that contains at {fname}: {m['umls_match']}, {other_m['umls_match']}, {s1, e1}, {s2, e2}")
             return True
         return False
 

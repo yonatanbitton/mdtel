@@ -5,7 +5,7 @@ from copy import deepcopy
 import pandas as pd
 
 from config import data_dir, DISORDER, CHEMICAL_OR_DRUG
-from high_recall_matcher_posts_level import words_similarity
+from utils import words_similarity
 
 labels_dir = data_dir + r'manual_labeled_v2\doccano'
 labels_output = labels_dir + os.sep + "merged_output"
@@ -17,6 +17,8 @@ SIMILARITY_THRESHOLD = 0.85
 label_numbers_for_each_community = {"diabetes": {9: DISORDER, 10: CHEMICAL_OR_DRUG},
                                     "sclerosis": {7: DISORDER, 8: CHEMICAL_OR_DRUG},
                                     "depression": {11: DISORDER , 12: CHEMICAL_OR_DRUG}}
+
+exceptions_lst = ['בעיות  \nנפשיות', '   קשה  ללכת ' , 'לא זוכרת']
 
 def main():
     depression_entities_stats, depression_lines_stats = merge_comm(community='depression')
@@ -305,9 +307,9 @@ def build_labels_df(comm_lines, community, posts_df):
             user_5_labels = []
             user_6_labels = []
             for ann in line_annotations:
-                annotated_term = line['text'][ann['start_offset']:ann['end_offset']]
-                annotated_term = annotated_term.replace('"', ' ').replace("'", ' ').replace("\n", " ")
-                if len(annotated_term.split(" ")) > 3: # Not taking terms longer then 3 words
+                annotated_term = get_annotated_term_and_fix_spaces(ann, line)
+
+                if len(annotated_term.split(" ")) > 3 or len(annotated_term) < 4: # Not taking terms longer then 3 words or shorter then 4 chars
                     print(f'Filtering term: {annotated_term}')
                     continue
                 term_d = {'term': annotated_term, 'start_offset': ann['start_offset'],
@@ -359,6 +361,32 @@ def build_labels_df(comm_lines, community, posts_df):
             raise Exception("Statistics error")
 
     return labels_df, comm_lines_stats_ser
+
+
+def get_annotated_term_and_fix_spaces(ann, line):
+    orig_term = line['text'][ann['start_offset']:ann['end_offset']]
+    if orig_term == '\n \nלא זוכרת ':
+        print("Yeah")
+    orig_s = ann['start_offset']
+    orig_e = ann['end_offset']
+    annotated_term = line['text'][ann['start_offset']:ann['end_offset']]
+    annotated_term = annotated_term.replace("\n", " ")
+    if annotated_term[0] == ' ':
+        ann['start_offset'] = ann['start_offset'] + 1
+        if annotated_term[1] == ' ':
+            ann['start_offset'] = ann['start_offset'] + 1
+
+    if annotated_term[-1] == ' ':
+        ann['end_offset'] = ann['end_offset'] - 1
+        if annotated_term[-2] == ' ':
+            ann['end_offset'] = ann['end_offset'] - 1
+
+    annotated_term = annotated_term.strip()
+    if annotated_term != orig_term:
+        print(f"Fixed {orig_term} to {annotated_term}, {orig_s, orig_e} => {ann['start_offset'], ann['end_offset']}")
+    if not line['text'][ann['start_offset']:ann['end_offset']] == annotated_term and orig_term not in exceptions_lst:
+        raise Exception(f"Problem with term: {orig_term}")
+    return annotated_term
 
 
 if __name__ == '__main__':
