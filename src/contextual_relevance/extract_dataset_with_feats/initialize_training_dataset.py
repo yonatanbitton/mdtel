@@ -1,14 +1,12 @@
-import difflib
+import json
 import os
 import re
-
-import pandas as pd
-import json
 import sys
 
+import pandas as pd
+
 # from debug.old_code.high_recall_matcher import word_is_english
-from high_recall_matcher_posts_level import word_is_english, replace_puncs
-from utils import words_similarity
+from utils import words_similarity, replace_puncs, word_is_english
 
 module_path = os.path.abspath(os.path.join('..', '..', '..', '..', os.getcwd()))
 sys.path.append(module_path)
@@ -194,7 +192,7 @@ class WindowsMaker:
         e1 = s1 + len(m['cand_match'])
         e2 = s2 + len(other_m['cand_match'])
         if abs(s1 - s2) <= 2 or abs(e1 - e2) <= 2:
-            print(f"Found long that contains at {fname}: {m['umls_match']}, {other_m['umls_match']}, {s1, e1}, {s2, e2}")
+            # print(f"Found long that contains at {fname}: {m['umls_match']}, {other_m['umls_match']}, {s1, e1}, {s2, e2}")
             return True
         return False
 

@@ -1,6 +1,5 @@
 import json
 import os
-import pickle
 import sys
 from collections import defaultdict, Counter, namedtuple
 from copy import deepcopy
@@ -12,30 +11,19 @@ from utils import words_similarity, replace_puncs
 module_path = os.path.abspath(os.path.join('..', '..', '..', '..', os.getcwd()))
 sys.path.append(module_path)
 
-from config import data_dir, FINAL_LABELS_COL, LOW_SIMILARITY_THRESHOLD, DISORDER, CHEMICAL_OR_DRUG
+from config import data_dir, FINAL_LABELS_COL, LOW_SIMILARITY_THRESHOLD
 
 labels_dir = data_dir + r'manual_labeled_v2\doccano\merged_output'
 extracted_feats_dir = data_dir + r"contextual_relevance\initialized_training_dataset"
 
-test_filenames_path = data_dir + r'results\test_filenames.csv'
-test_filenames_df = pd.read_csv(test_filenames_path)
-test_filenames_df[DISORDER] = test_filenames_df[DISORDER].apply(json.loads)
-test_filenames_df[CHEMICAL_OR_DRUG] = test_filenames_df[CHEMICAL_OR_DRUG].apply(json.loads)
-
-test_filenames_df['test_filenames'] = test_filenames_df.apply(lambda row: list(set(row[DISORDER] + row[CHEMICAL_OR_DRUG])), axis=1)
-test_filenames_df.set_index('Unnamed: 0', inplace=True)
 output_dir = data_dir + r"contextual_relevance\labels"
 
 cuiless_dir = data_dir + r"manual_labeled_v2\items_not_in_umls"
-cuiless_df = pd.read_excel(cuiless_dir + os.sep + 'cuiless_terms.xlsx')
-all_cuiless_terms = list(cuiless_df['terms'].values)
+cuiless_df = pd.read_csv(cuiless_dir + os.sep + 'cuiless_terms.csv')
+all_cuiless_terms = list(cuiless_df['HEB'].values)
 
 missed_labels_counter = Counter()
 most_common_n = 50
-
-filenames_for_term_per_community = {'diabetes': defaultdict(list),
-                          'sclerosis': defaultdict(list),
-                          'depression': defaultdict(list)}
 
 Entity = namedtuple("T", "i s e")
 
@@ -53,7 +41,7 @@ def handle_community(community):
 
     print_fns_stats(all_labeled_terms_without_matches, community, could_be_matched)
 
-    output_data(labels_df, all_labels, community, relevant_feats_df)
+    output_data(all_labels, community, relevant_feats_df)
 
 
 
@@ -64,7 +52,6 @@ def prepare_high_recall_and_labels_dfs(community):
         lambda x: json.loads(x) if str(x) != 'nan' else [])
     extract_feats_df['curr_occurence_offset'] = extract_feats_df['curr_occurence_offset'].apply(
         lambda x: int(x) if str(x).isdigit() else x)
-    # print(f"Original Shape: {extract_feats_df.shape}")
     labels_df, relevant_feats_df = get_labels_df(community, extract_feats_df)
 
     return extract_feats_df, labels_df, relevant_feats_df
@@ -75,7 +62,6 @@ def get_labels_df(community, extract_feats_df):
     labels_df[FINAL_LABELS_COL] = labels_df[FINAL_LABELS_COL].apply(json.loads)
     labels_df[FINAL_LABELS_COL] = labels_df[FINAL_LABELS_COL].apply(lambda lst: strip_terms(lst))
     return labels_df, extract_feats_df
-
 
 def fix_tokenization_problems(row, tagger):
     bio_tags = row['bio_tags']
@@ -92,43 +78,23 @@ def fix_tokenization_problems(row, tagger):
         assert len(fixed_tokenization_problems) == 0
         return bio_tags_fixed['words_and_tags']
 
-def output_data(labels_df, all_labels, community, relevant_feats_df):
+def output_data(all_labels, community, relevant_feats_df):
     curr_cols = relevant_feats_df.columns
     assert len(all_labels) == len(relevant_feats_df)
     relevant_feats_df['yi'] = all_labels
     cols_order = curr_cols.insert(1, 'yi')
     relevant_feats_df = relevant_feats_df[cols_order]
-    # print("Done")
     fpath = output_dir + os.sep + community + '_labels.csv'
-    # print(f"Writing file at shape: {relevant_feats_df.shape} to fpath: {fpath}")
     relevant_feats_df.to_csv(fpath, index=False, encoding='utf-8-sig')
-    # labels_with_bio_p = output_dir + os.sep + community + '_bio_tags.csv'
-    # labels_df['bio_tags'] = labels_df['bio_tags'].apply(lambda x: json.dumps(x, ensure_ascii=False))
-    # labels_df[FINAL_LABELS_COL] = labels_df[FINAL_LABELS_COL].apply(lambda x: json.dumps(x, ensure_ascii=False))
-    # labels_df.to_csv(labels_with_bio_p, index=False, encoding='utf-8-sig')
 
 
 def print_fns_stats(all_labeled_terms_without_matches, community, could_be_matched):
     print(f"Original all_labeled_terms_without_matches len: {len(all_labeled_terms_without_matches)}")
     all_labeled_terms_without_matches = [x for x in all_labeled_terms_without_matches if len(x['term']) > 3]
-    print(f"could_be_matched: {could_be_matched}")
-    num_all_labeled_terms_without_matches = len(all_labeled_terms_without_matches)
-    num_set_all_labeled_terms_without_matches = len(set([t['term'] for t in all_labeled_terms_without_matches]))
-    print(
-        f"all_labeled_terms_without_matches: {num_all_labeled_terms_without_matches}, len set: {num_set_all_labeled_terms_without_matches}")
-    good_case_fns = num_all_labeled_terms_without_matches - could_be_matched
-    print(
-        f"Community: {community}, FNs: {num_all_labeled_terms_without_matches}, could be matched: {could_be_matched} => {good_case_fns}, 25% of curr: {num_all_labeled_terms_without_matches * 0.25}")
-    # print(f"Final Shape (breaked): {relevant_feats_df.shape}")
     global missed_labels_counter
-    # comm_counter = Counter([t['term'] for t in all_labeled_terms_without_matches])
     comm_counter = Counter([t['term'] for t in all_labeled_terms_without_matches if t['term'] not in all_cuiless_terms])
     missed_labels_counter += comm_counter
     print(f"*** {community} Counter {len(comm_counter)}***")
-    for item in comm_counter.most_common(most_common_n):
-        filenames_for_term = filenames_for_term_per_community[community][item[0]]
-        if len(filenames_for_term) > 0:
-            print(filenames_for_term, item)
 
 
 def iterate_labels_calculate_stats(high_recall_matches_matched_for_file_name, labels_df, relevant_feats_df, community):
@@ -139,7 +105,6 @@ def iterate_labels_calculate_stats(high_recall_matches_matched_for_file_name, la
                                                          high_recall_matches_matched_for_file_name, label_row,
                                                          relevant_feats_df)
 
-        # if label_row['file_name'] in test_filenames_df.at[community, 'test_filenames']:
         all_labeled_terms_without_matches += unmatched_labels
     return all_labeled_terms_without_matches, could_be_matched
 
@@ -158,9 +123,6 @@ def iterate_row(community, could_be_matched, high_recall_matches_matched_for_fil
             print(f"file_name: {label_row['file_name']}")
             print(unmatched_labels)
             print("\n")
-    for t in unmatched_labels:
-        # if file_name in test_filenames_df.at[community, 'test_filenames']:
-        filenames_for_term_per_community[community][t['term']].append(Entity(file_name, t['start_offset'], t['end_offset']))
     return could_be_matched, unmatched_labels
 
 
@@ -196,10 +158,7 @@ def get_labels_for_high_recall_matches(extract_feats_df, labels_df, relevant_fea
         labels_df = labels_df[labels_df['file_name'] == file_name_to_debug]
     all_labels = []
     for r_idx, row in relevant_feats_df.iterrows():
-        try:
-            label_row = labels_df[labels_df['file_name'] == row['file_name']].iloc[0]
-        except Exception as ex:
-            raise Exception(f"Missing file_name: {row['file_name']}")
+        label_row = labels_df[labels_df['file_name'] == row['file_name']].iloc[0]
 
         label_row_tokenized_txt = replace_puncs(label_row['tokenized_text'])
         label_row_tokenized_text_single_spaces = " ".join(
@@ -241,15 +200,6 @@ def get_high_recall_matches_lst_for_post(label_row, relevant_feats_df):
     return high_recall_matches_lst
 
 def leave_only_unmatched_labels(matches_for_filename, post_labeled_terms, file_name):
-    # ster_labels = [m for m in post_labeled_terms if 'סטר' in m['term']]
-    # matches_for_filename = [m for m in matches_for_filename if 'סטר' in m['cand_match']]
-    # post_labeled_terms = ster_labels
-    #### DDDDDDDDDDDDDDDDDEBBBBBBBBBBBBBBUGGGGGGGGGGGGGGGGGGGGGGG
-
-    post_labeled_terms_original = deepcopy(post_labeled_terms)
-    # post_labeled_matches = [m['term'] for m in post_labeled_terms]
-
-
     for m in matches_for_filename:
         if m['best_match'] not in post_labeled_terms:
             most_similar_t = None
@@ -265,7 +215,6 @@ def leave_only_unmatched_labels(matches_for_filename, post_labeled_terms, file_n
                 print(f"*** Couldn't remove {m}, file_name: {file_name}")
         else:
             post_labeled_terms.remove(m['best_match'])
-    # assert len(post_labeled_terms_original) - len(matches_for_filename) == len(post_labeled_terms)
     return post_labeled_terms
 
 
@@ -296,13 +245,6 @@ def get_yi_for_cand_match(label_row, row):
             if words_similarity(ann['term'], row['cand_match']) >= LOW_SIMILARITY_THRESHOLD:
                 found_label_for_row = True
                 best_match = ann
-                # if abs(ann['start_offset'] - row_start_offset) == 3 or abs(ann['end_offset'] - row_end_offset) == 3: #   , #words_similarity(ann['term'], row['cand_match']) < 0.82
-                #     label_pref = label_row['text'][ann['start_offset']-20:ann['start_offset']]
-                #     curr_pref = row["match_3_window"]
-                #     print(f'*** Allowed this case: {ann["term"], row["cand_match"]}, {words_similarity(ann["term"], row["cand_match"])} prefs:')
-                #     print(label_pref)
-                #     print(curr_pref)
-                #     print("\n")
 
     yi = 1 if found_label_for_row else 0
     return yi, best_match
@@ -337,9 +279,5 @@ if __name__ == '__main__':
     handle_community('sclerosis')
     handle_community('depression')
     handle_community('diabetes')
-
-    print("\nGlobal missed_labels_counter:")
-    for item in missed_labels_counter.most_common(most_common_n * 3):
-        print(item)
 
     print("Adding labels - Done.")

@@ -43,9 +43,6 @@ def handle_community(community):
         yap_d = {**row.to_dict(), **dep_tree_d, **md_lattice_d}
         all_rows_with_yap.append(yap_d)
 
-        # if row_idx % 10 == 0:
-        #     print(f"row_idx: {row_idx}, out of: {len(comm_df)}, match: {row['umls_match']}, number_of_sorts: {number_of_sorts}")
-
     comm_df_yap = pd.DataFrame(all_rows_with_yap)
     comm_df_yap.to_csv(output_dir + os.sep + community + "_output.csv", index=False, encoding='utf-8-sig')
 
@@ -71,7 +68,6 @@ def get_dep_tree_features(comm_dep_trees_dir, full_fname, row):
     return dep_tree_d
 
 def get_correct_row_from_df(df, cand_match, umls_match, row):
-    # global comm_duplicates
     number_of_match = row['all_match_occ'].index(row['curr_occurence_offset'])
     cand_match_parts = cand_match.split(" ")
     match_len = len(cand_match_parts)

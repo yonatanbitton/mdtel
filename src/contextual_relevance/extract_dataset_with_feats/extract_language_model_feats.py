@@ -1,8 +1,6 @@
-import argparse
-import difflib
+import sys
 
 from fastai.text import *
-import sys
 
 module_path = os.path.abspath(os.path.join('..', '..', '..', '..', os.getcwd()))
 sys.path.append(module_path)

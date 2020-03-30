@@ -65,9 +65,6 @@ def handle_community(community):
     result_train.to_csv(extracted_training_dataset_dir + os.sep + "train" + os.sep + community + ".csv", index=False, encoding='utf-8-sig')
     result_test.to_csv(extracted_training_dataset_dir + os.sep + "test" + os.sep + community + ".csv", index=False, encoding='utf-8-sig')
 
-    # result.to_csv(extracted_training_dataset_dir + os.sep + community + ".csv", index=False, encoding='utf-8-sig')
-    # print(f"merged written to file {extracted_training_dataset_dir + os.sep + community}")
-
 
 def remove_redundant_cols(r2, r3, r4, r5, r6):
     for r in [r2, r3, r4, r5, r6]:

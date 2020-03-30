@@ -16,8 +16,8 @@ calculated_relatedness_dir = data_dir + r"contextual_relevance\relatedness"
 output_dir = data_dir + r"contextual_relevance\relatedness\output"
 
 cuiless_dir = data_dir + r"manual_labeled_v2\items_not_in_umls"
-cuiless_df = pd.read_excel(cuiless_dir + os.sep + "cuiless_terms.xlsx")
-all_cuiless_terms = set(list(cuiless_df['terms']))
+cuiless_df = pd.read_csv(cuiless_dir + os.sep + "cuiless_terms.csv")
+all_cuiless_terms = set(list(cuiless_df['HEB']))
 print("Added CUILESS terms")
 
 yap = YapApi()

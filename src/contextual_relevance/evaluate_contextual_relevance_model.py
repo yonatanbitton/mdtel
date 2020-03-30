@@ -5,7 +5,6 @@ import sys
 
 import numpy as np
 import pandas as pd
-from high_recall_matcher_posts_level import words_similarity
 from seqeval.metrics import accuracy_score as seq_eval_acc
 from seqeval.metrics import classification_report
 from seqeval.metrics import f1_score as seq_eval_f1
@@ -16,7 +15,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import f1_score, recall_score, roc_auc_score, accuracy_score, confusion_matrix, precision_score
 from sklearn_crfsuite import metrics
 
-from utils import SequenceTagger
+from utils import SequenceTagger, words_similarity
 
 module_path = os.path.abspath(os.path.join('..', '..', os.getcwd()))
 sys.path.append(module_path)
@@ -395,8 +394,8 @@ def main():
     titles_for_keys = {'entity_level_eval_df': 'Entity level eval',
                        'token_level_seq_eval_df': 'Token level seqeval performance',
                        'token_level_crf_df': 'Token level crfsuite performance',
-                       'token_level_io_crf_df': 'Token level IO tags seqeval performance',
-                       'token_level_io_seq_eval_df': 'Token level IO tags crfsuite performance',
+                       # 'token_level_io_crf_df': 'Token level IO tags seqeval performance',
+                       # 'token_level_io_seq_eval_df': 'Token level IO tags crfsuite performance',
                        }
 
     for k, title in titles_for_keys.items():
