@@ -21,6 +21,6 @@ __pycache__
 
 *.bin
 
+annotations
 
 debug
-NER-Evaluation-master

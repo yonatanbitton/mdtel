@@ -139,8 +139,8 @@ def iterate_labels_calculate_stats(high_recall_matches_matched_for_file_name, la
                                                          high_recall_matches_matched_for_file_name, label_row,
                                                          relevant_feats_df)
 
-        if label_row['file_name'] in test_filenames_df.at[community, 'test_filenames']:
-            all_labeled_terms_without_matches += unmatched_labels
+        # if label_row['file_name'] in test_filenames_df.at[community, 'test_filenames']:
+        all_labeled_terms_without_matches += unmatched_labels
     return all_labeled_terms_without_matches, could_be_matched
 
 
@@ -159,8 +159,8 @@ def iterate_row(community, could_be_matched, high_recall_matches_matched_for_fil
             print(unmatched_labels)
             print("\n")
     for t in unmatched_labels:
-        if file_name in test_filenames_df.at[community, 'test_filenames']:
-            filenames_for_term_per_community[community][t['term']].append(Entity(file_name, t['start_offset'], t['end_offset']))
+        # if file_name in test_filenames_df.at[community, 'test_filenames']:
+        filenames_for_term_per_community[community][t['term']].append(Entity(file_name, t['start_offset'], t['end_offset']))
     return could_be_matched, unmatched_labels
 
 

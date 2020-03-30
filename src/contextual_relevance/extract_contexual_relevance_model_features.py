@@ -3,11 +3,11 @@ from subprocess import Popen
 
 scripts_path = 'extract_dataset_with_feats'
 
-# init_program = 'initialize_training_dataset.py'
+init_program = 'initialize_training_dataset.py'
 
 feature_extraction_script_names = ['extract_count_features.py',
                 'extract_language_model_feats.py',
-               # 'extract_language_model_feats_with_cache.py',
+               'extract_labels.py',
                'extract_relatedness_features.py',
                 'extract_yap_features.py']
 
@@ -15,9 +15,9 @@ run_merge_programs = True
 
 merge_programs = ['merge_extracted_feats_and_labels.py']
 
-# init_cmd = f'python {scripts_path + os.sep + init_program}'
-# print(f"Running init cmd: {init_cmd}...")
-# os.system(init_cmd)
+init_cmd = f'python {scripts_path + os.sep + init_program}'
+print(f"Running init cmd: {init_cmd}...")
+os.system(init_cmd)
 
 print(f"Running concurrent feature extraction of contextual relevance model...")
 

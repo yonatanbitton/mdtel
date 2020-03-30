@@ -2,6 +2,9 @@ import json
 
 import pandas as pd
 import os
+
+from sklearn.model_selection import train_test_split
+
 from config import data_dir
 
 initialized_training_dataset_dir = data_dir + r"contextual_relevance\initialized_training_dataset"
@@ -23,8 +26,6 @@ def handle_community(community):
     relatedness_features = pd.read_csv(relatedness_features_path + os.sep + community + "_output.csv")
     labels_df = pd.read_csv(labels_path + os.sep + community + "_labels.csv")
 
-    column_lengths = len(initialized_training_dataset.columns), len(count_features.columns), len(lm_features.columns), len(relatedness_features.columns)
-
     joint_cols = list(initialized_training_dataset.columns)
     count_cols = ['match_count', 'match_freq']
     lm_cols = ['pred_10_window', 'pred_6_window', 'pred_3_window', 'pred_2_window']
@@ -34,7 +35,6 @@ def handle_community(community):
     all_final_cols = joint_cols + label_col + count_cols + lm_cols + relatedness_cols + yap_cols
 
     idx_col = 'curr_occurence_offset'
-    # print(f"Len before: {len(initialized_training_dataset), len(count_features), len(lm_features), len(relatedness_features), len(yap_features)}")
 
     all_rows = []
     for idx in range(len(initialized_training_dataset)):
@@ -52,9 +52,20 @@ def handle_community(community):
 
     print(all_final_cols)
     result = pd.DataFrame(all_rows, columns=all_final_cols)
-    # for c in ['all_match_occ', 'txt_words', 'occurences_indexes_in_txt_words']:
-    #     result[c] = result[c].apply(lambda x: json.dumps(x, ensure_ascii=False))
-    result.to_csv(extracted_training_dataset_dir + os.sep + community + ".csv", index=False, encoding='utf-8-sig')
+
+    test_size = 0.25
+
+    all_filenames = result['file_name'].values
+    all_filenames_nodups = list(set(all_filenames))
+    filenames_train, filenames_test = train_test_split(all_filenames_nodups, test_size=test_size, shuffle=False)
+
+    result_train = result[result['file_name'].isin(filenames_train)]
+    result_test = result[result['file_name'].isin(filenames_test)]
+
+    result_train.to_csv(extracted_training_dataset_dir + os.sep + "train" + os.sep + community + ".csv", index=False, encoding='utf-8-sig')
+    result_test.to_csv(extracted_training_dataset_dir + os.sep + "test" + os.sep + community + ".csv", index=False, encoding='utf-8-sig')
+
+    # result.to_csv(extracted_training_dataset_dir + os.sep + community + ".csv", index=False, encoding='utf-8-sig')
     # print(f"merged written to file {extracted_training_dataset_dir + os.sep + community}")
 
 

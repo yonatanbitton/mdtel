@@ -131,8 +131,8 @@ def get_all_words_and_lemmas_from_df(dataframes):
 
 
 def main():
-    # parse_community('depression')
-    # parse_community('sclerosis')
+    parse_community('depression')
+    parse_community('sclerosis')
     parse_community('diabetes')
 
 if __name__ == '__main__':

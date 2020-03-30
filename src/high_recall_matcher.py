@@ -20,14 +20,14 @@ sys.path.append(module_path)
 from config import *
 
 input_dir = data_dir + r"high_recall_matcher\posts\lemlda"
-umls_df_data_path = data_dir + r"high_recall_matcher\mrconso_disorders_chemicals_merged.csv"
+umls_df_data_path = data_dir + r"high_recall_matcher\heb_to_eng_mrconso_disorders_chemicals_kb.csv"
 output_dir = data_dir + r"high_recall_matcher\output"
 
 CUILESS = True
 cuiless_dir = data_dir + r"manual_labeled_v2\items_not_in_umls"
 acronyms_dir = data_dir + r"manual_labeled_v2\acronyms"
 
-DEBUG = True
+DEBUG = False
 post_num = 338
 debugging_term = 'נרות'
 
@@ -43,8 +43,8 @@ def main():
     heb_searcher = Searcher(heb_db, CosineMeasure())
     eng_searcher = Searcher(eng_db, CosineMeasure())
 
-    # handle_community(SCLEROSIS, heb_searcher, eng_searcher, umls_data)
-    handle_community(DIABETES, heb_searcher, eng_searcher, umls_data)
+    handle_community(SCLEROSIS, heb_searcher, eng_searcher, umls_data)
+    # handle_community(DIABETES, heb_searcher, eng_searcher, umls_data)
     # handle_community(DEPRESSION, heb_searcher, eng_searcher, umls_data)
 
     print("Done")
@@ -65,7 +65,7 @@ def handle_community(chosen_community, heb_searcher, eng_searcher, umls_data):
         if DEBUG:
             print(msg_matches_found)
         all_matches_found.append(json.dumps(msg_matches_found, ensure_ascii=False))
-        print_stats(idx, row, msg_matches_found, number_of_posts)
+        print_stats(idx, number_of_posts)
 
     community_df['matches_found'] = all_matches_found
 
@@ -85,7 +85,6 @@ def get_english_and_hebrew_matches(eng_searcher, heb_searcher, row, umls_data):
         return []
     english_matches_found = get_english_matches(eng_searcher, row, umls_data)
     all_hebrew_matches_found = get_hebrew_matches(heb_searcher, row, umls_data)
-    # msg_matches_found = list_union(all_hebrew_matches_found, english_matches_found, post_key='union')
     msg_matches_found = list_union_by_match_occs(all_hebrew_matches_found, english_matches_found)
 
     return msg_matches_found
@@ -95,17 +94,14 @@ def get_hebrew_matches(heb_searcher, row, umls_data):
     all_hebrew_matches_found = []
 
     for hebrew_key in ['post_txt', 'tokenized_text', 'segmented_text', 'lemmas']:
-    # for hebrew_key in ['segmented_text']:
         msg_key_txt = row[hebrew_key]
         matches_found_for_key = find_umls_match_fast(msg_key_txt, heb_searcher, row, hebrew_key)
 
         if matches_found_for_key not in [(), []]:
-            # matches_found_for_key = take_highest_sim_matches(matches_found_for_key, umls_data)
             matches_found_for_key = add_heb_umls_data(matches_found_for_key, umls_data, hebrew_key)
 
         all_hebrew_matches_found = list_union_by_match_occs(all_hebrew_matches_found, matches_found_for_key)
 
-    # all_hebrew_matches_found = get_matches_with_full_occs(all_hebrew_matches_found)
     return all_hebrew_matches_found
 
 def get_english_matches(eng_searcher, row, umls_data):
@@ -169,12 +165,12 @@ def add_match_data(all_matches_found, cand_term, msg_key_lang, row, sim, umls_ma
     all_match_occ, cand_match_occ_in_key_txt, curr_occurence_offset = get_cand_occ_in_text(all_matches_found,
                                                                                              cand_term, msg_key_lang,
                                                                                              row)
-    if all_match_occ is None:
-        print(f"*** all_match_occ is None! {all_match_occ}: {cand_term}")
-        print(row['post_txt'])
-        print(f"Curr matches")
-        print(all_matches_found)
-    else:
+    # if all_match_occ is None:
+    #     print(f"*** all_match_occ is None! {all_match_occ}: {cand_term}")
+    #     print(row['post_txt'])
+    #     print(f"Curr matches")
+    #     print(all_matches_found)
+    if all_match_occ:
         result = {'cand_match': cand_term, 'umls_match': umls_match,
                   'cand_match_occ_in_key_txt': cand_match_occ_in_key_txt,
                   'sim': round(sim, 3), 'curr_occurence_offset': curr_occurence_offset,
@@ -294,7 +290,6 @@ def find_match_occ_for_cand_term_and_text(cand_term, match_occs_in_txt, tokenize
 def find_occurence_offset(all_matches_found, cand_match_occ_in_key_txt, row, msg_key_lang):
     post_txt = row['post_txt']
     post_txt = post_txt.lower()
-    # all_match_occ = [m.start() for m in re.finditer(r"." + cand_match_occ_in_key_txt, post_txt)]
     all_start_match_occ = [m.start() for m in re.finditer(cand_match_occ_in_key_txt, post_txt)]
 
     curr_occurence = 0
@@ -333,16 +328,16 @@ def get_umls_data():
     umls_data = pd.read_csv(umls_df_data_path)
     print(f"Got UMLS data at length {len(umls_data)}")
 
-    acronyms_df = pd.read_excel(acronyms_dir + os.sep + 'acronyms_data.xlsx')
-    acronyms_umls_df = get_df_with_umls_rows(acronyms_df, umls_data)
+    acronyms_umls_df = pd.read_csv(acronyms_dir + os.sep + 'acronyms_terms.csv')
     umls_data = pd.concat([umls_data, acronyms_umls_df])
 
     if CUILESS:
-        cuiless_umls_df = get_cuiless_data(umls_data)
+        cuiless_umls_df = pd.read_csv(cuiless_dir + os.sep + 'cuiless_terms.csv')
         umls_data = pd.concat([umls_data, cuiless_umls_df])
         print("Added CUILESS terms")
 
     umls_data.reset_index(inplace=True)
+    print(f"After reset index: {len(umls_data)}")
 
     heb_umls_list = list(umls_data['HEB'].values)
     eng_umls_list = list(umls_data[STRING_COLUMN].values)
@@ -367,6 +362,7 @@ def get_cuiless_data(umls_data):
         cuiless_umls_rows.append({'STR': r['terms'], 'STY': r['STY'], 'TUI': r['TUI']})
     cuiless_umls_df = pd.DataFrame(cuiless_umls_rows, columns=umls_data.columns)
     cuiless_umls_df['HEB'] = cuiless_umls_df['STR']
+    cuiless_umls_df['PROCESSED_STR'] = cuiless_umls_df['STR'].apply(lambda x: x.lower())
     cuiless_umls_df.fillna('CUILESS', inplace=True)
     return cuiless_umls_df
 
@@ -374,9 +370,9 @@ def get_cuiless_data(umls_data):
 def get_df_with_umls_rows(subset_df, umls_data):
     subset_umls_rows = []
     for r_idx, subset_row in subset_df.iterrows():
-        # print(r_idx, acronym_row['STR'])
         umls_row = umls_data[umls_data['STR'] == subset_row['STR']].iloc[0]
         umls_row['STR'] = subset_row['NAME']
+        umls_row['PROCESSED_STR'] = umls_row['STR'].lower()
         subset_umls_rows.append(umls_row)
     acronyms_umls_df = pd.DataFrame(subset_umls_rows)
     return acronyms_umls_df
@@ -424,14 +420,9 @@ def curr_match_span_intersects_with_existing_matches(d, all_matches_with_same_um
     return curr_match_intersects
 
 
-def print_stats(idx, row, msg_matches_found, number_of_posts):
-    if idx % 100 == 0 and idx > 0:
+def print_stats(idx, number_of_posts):
+    if idx % 50 == 0 and idx > 0:
         print(f"idx: {idx}, out of: {number_of_posts}, total {round((idx / number_of_posts) * 100, 3)}%")
-    if DEBUG or idx % 100 == 0:
-        if msg_matches_found != None and msg_matches_found != []:
-            print(row['tokenized_text'])
-            print(msg_matches_found)
-            print()
 
 
 def get_semantic_type(match_tui):
@@ -444,12 +435,7 @@ def get_semantic_type(match_tui):
 def add_heb_umls_data(heb_matches, umls_data, hebrew_key):
     heb_matches_with_codes = []
     for match_d in heb_matches:
-        if match_d['umls_match'] == 'בנרות':
-            print("בנרות")
-        # idx_of_match_in_df = umls_data['HEB'].searchsorted(match_d['umls_match'])
         idx_of_match_in_df = get_idx_of_match_in_umls(match_d, umls_data)
-        if match_d['umls_match'] == 'בנרות':
-            print(umls_data.iloc[idx_of_match_in_df])
 
         match_cui = umls_data.iloc[idx_of_match_in_df]['CUI']
         match_tui = umls_data.iloc[idx_of_match_in_df]['TUI']
@@ -461,7 +447,6 @@ def add_heb_umls_data(heb_matches, umls_data, hebrew_key):
                  'curr_occurence_offset': match_d['curr_occurence_offset']}
         if heb_d not in heb_matches_with_codes:
             heb_matches_with_codes.append(heb_d)
-        # heb_matches_with_codes.append((cand + "-" + word_match + " ( " + match_eng + " )" + " : " + str(sim), match_cui))
     return heb_matches_with_codes
 
 
