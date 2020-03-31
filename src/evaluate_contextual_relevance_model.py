@@ -45,7 +45,7 @@ def evaluate_community(community):
     token_level_crf_df, token_level_io_crf_df, TN = token_evaluation(community, test_labels_df)
     entity_level_eval_df = entity_level_evaluation(community, test_labels_df, TN)
 
-    # print_errors(community, 'FN')
+    print_errors(community, 'FN')
     # print_errors(community, 'FP')
 
     all_annotated_terms, annotated_terms_stats = get_annotated_terms_stats(labels_df, community)
@@ -402,8 +402,8 @@ def get_measures_for_y_test_and_hard_y_pred(hard_y_pred, y_pred, y_test):
 
 def main():
     print("Starting main")
-    depression_results = evaluate_community('depression')
     diabetes_results = evaluate_community('diabetes')
+    depression_results = evaluate_community('depression')
     sclerosis_results = evaluate_community('sclerosis')
 
     titles_for_keys = {'entity_level_eval_df': 'Entity level performance',

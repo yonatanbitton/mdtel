@@ -308,10 +308,9 @@ def get_umls_data():
     acronyms_umls_df = pd.read_csv(acronyms_dir + os.sep + 'acronyms_terms.csv')
     umls_data = pd.concat([umls_data, acronyms_umls_df])
 
-    if CUILESS:
-        cuiless_umls_df = pd.read_csv(cuiless_dir + os.sep + 'cuiless_terms.csv')
-        umls_data = pd.concat([umls_data, cuiless_umls_df])
-        # print("Added CUILESS terms")
+    cuiless_umls_df = pd.read_csv(cuiless_dir + os.sep + 'cuiless_terms.csv')
+    umls_data = pd.concat([umls_data, cuiless_umls_df])
+    # print("Added CUILESS terms")
 
     umls_data.reset_index(inplace=True)
     # print(f"After reset index: {len(umls_data)}")
