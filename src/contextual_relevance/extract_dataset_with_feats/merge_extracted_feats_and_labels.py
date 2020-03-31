@@ -1,9 +1,12 @@
 import json
 
 import pandas as pd
-import os
+import os, sys
 
 from sklearn.model_selection import train_test_split
+module_path = os.path.abspath(os.path.join('..', '..', '..', os.getcwd()))
+print(f"In merge_extracted_feats_and_labels, {module_path}")
+sys.path.append(module_path)
 
 from config import data_dir
 

@@ -1,4 +1,4 @@
-# MDTEL - Medical-Deep-Transliteration-Entity-Linking
+reproduce_paper_tables# MDTEL - Medical-Deep-Transliteration-Entity-Linking
 
 This repository contains the code for the paper "Cross-Lingual UMLS Entity Linking in Online Health Communities" 
 
@@ -17,6 +17,16 @@ Here is a link to the data directory: https://drive.google.com/file/d/17JTxutH15
 ![image](presentations/flow_diagram.jpg)
 ![image](presentations/rebif_example_smaller.png)
 
+All of the paper results and table stats can be reproduced by simply running  
+`python src\evaluate_contextual_relevance_model.py`  
+This line will export all of the paper results and stats tables to the results directory at: `data\results`
+> ls data\results  
+>'Entity level performance.xlsx'    'Token level performance.xlsx' 
+'Depression Token level performance report.xlsx'    'Sclerosis Token level performance report.xlsx'
+'Diabetes Token level performance report.xlsx'    'Annotated terms stats.xlsx'
+'High recall candidates filtered out.xlsx'         
+
+
 ## Setup   
 
 First, download the data directory.  
@@ -29,13 +39,10 @@ conda env create -f environment.yml
 conda activate mdtel_env
 ``` 
 
-Config file - `config.py`. Includes a data_path, and DEBUG flag.  
-please change the current data path (`data_dir = r"E:\mdtel_data\data" + os.sep`) to your data directory.  
-if DEBUG flag is set, the code will work on 100 instances only. 
+Config file - `config.py`.  
+please change the current data path (`data_dir = r"E:\mdtel_data\data" + os.sep`) to your data directory.   
 
-The manual labeled medical terms are at dir `data\manual_labeled`
-
-The notebook `reproduce_paper_tables.ipynb` provides steps to reproduce the results table that were reported in the paper.  
+The manual labeled medical terms are at dir `data\manual_labeled_v2\doccano`
 
 We now describe steps to reproduce each one of the steps.  
 
@@ -67,7 +74,8 @@ Run the code at `extract_contexual_relevance_model_features.py` in order to extr
 This code **extracts all of the features automatically**, no need to run each file in seperate. 
 
 Then, run the code at `evaluate_contextual_relevance_model.py` in order to train and evaluate the contextual relevance model.  
-`python src\contextual_relevance\evaluate_contextual_relevance_model.py`  
+`python src\evaluate_contextual_relevance_model.py`  
+This line will export all of the paper results and stats tables to the results directory at: `data\results`
 
 This step includes several parts:
 1. Relatedness

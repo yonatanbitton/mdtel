@@ -1,4 +1,10 @@
+print("Running config")
+
 import os
+
+# module_path = os.path.abspath(os.path.join(os.getcwd()))
+# print(f"In config, appending {module_path}")
+# sys.path.append(module_path)
 
 data_dir = r"E:\mdtel_data\data" + os.sep
 umls_similarity_path = r'E:\umls_perl\UMLS-Similarity-1.47\utils'

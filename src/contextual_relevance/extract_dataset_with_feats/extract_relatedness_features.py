@@ -8,6 +8,10 @@ from contextual_relevance.extract_dataset_with_feats.yap.yap_api import YapApi
 module_path = os.path.abspath(os.path.join('..', '..', '..', os.getcwd()))
 sys.path.append(module_path)
 
+module_path = os.path.abspath(os.path.join('..', '..', '..', os.getcwd()))
+print(f"In extract_relatedness_features, {module_path}")
+sys.path.append(module_path)
+
 from config import data_dir, umls_similarity_path
 
 input_dir = data_dir + r"contextual_relevance\initialized_training_dataset"

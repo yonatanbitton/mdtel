@@ -10,6 +10,10 @@ from utils import words_similarity
 module_path = os.path.abspath(os.path.join('..', '..', '..', os.getcwd()))
 sys.path.append(module_path)
 
+module_path = os.path.abspath(os.path.join('..', '..', '..', os.getcwd()))
+print(f"In extract_yap_features, {module_path}")
+sys.path.append(module_path)
+
 from config import data_dir, SIMILARITY_THRESHOLD
 
 input_dir = data_dir + r"contextual_relevance\initialized_training_dataset"

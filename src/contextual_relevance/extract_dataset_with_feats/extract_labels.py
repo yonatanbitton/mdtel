@@ -8,7 +8,12 @@ import pandas as pd
 
 from utils import words_similarity, replace_puncs
 
+
 module_path = os.path.abspath(os.path.join('..', '..', '..', '..', os.getcwd()))
+sys.path.append(module_path)
+
+module_path = os.path.abspath(os.path.join('..', '..', '..', os.getcwd()))
+print(f"In extract_labels, {module_path}")
 sys.path.append(module_path)
 
 from config import data_dir, FINAL_LABELS_COL, LOW_SIMILARITY_THRESHOLD
@@ -89,12 +94,12 @@ def output_data(all_labels, community, relevant_feats_df):
 
 
 def print_fns_stats(all_labeled_terms_without_matches, community, could_be_matched):
-    print(f"Original all_labeled_terms_without_matches len: {len(all_labeled_terms_without_matches)}")
+    # print(f"Original all_labeled_terms_without_matches len: {len(all_labeled_terms_without_matches)}")
     all_labeled_terms_without_matches = [x for x in all_labeled_terms_without_matches if len(x['term']) > 3]
     global missed_labels_counter
     comm_counter = Counter([t['term'] for t in all_labeled_terms_without_matches if t['term'] not in all_cuiless_terms])
     missed_labels_counter += comm_counter
-    print(f"*** {community} Counter {len(comm_counter)}***")
+    # print(f"*** {community} Counter {len(comm_counter)}***")
 
 
 def iterate_labels_calculate_stats(high_recall_matches_matched_for_file_name, labels_df, relevant_feats_df, community):

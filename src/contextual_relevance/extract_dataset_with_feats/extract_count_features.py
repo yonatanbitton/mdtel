@@ -6,6 +6,10 @@ import sys
 module_path = os.path.abspath(os.path.join('..', '..', '..', os.getcwd()))
 sys.path.append(module_path)
 
+module_path = os.path.abspath(os.path.join('..', '..', '..', os.getcwd()))
+print(f"In extract_count_features, {module_path}")
+sys.path.append(module_path)
+
 from config import data_dir
 
 wiki_data_dir = data_dir + r"contextual_relevance\wiki_data.txt"

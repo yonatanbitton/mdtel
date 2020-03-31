@@ -3,8 +3,6 @@ import re
 import string
 from collections import Counter
 
-from config import DISORDER, CHEMICAL_OR_DRUG
-
 
 def word_is_english(word):
     for c in word:

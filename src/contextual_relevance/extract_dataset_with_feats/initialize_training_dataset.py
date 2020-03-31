@@ -4,8 +4,10 @@ import re
 import sys
 
 import pandas as pd
+module_path = os.path.abspath(os.path.join('..', '..', '..', os.getcwd()))
+print(f"In initialize_training_dataset, {module_path}")
+sys.path.append(module_path)
 
-# from debug.old_code.high_recall_matcher import word_is_english
 from utils import words_similarity, replace_puncs, word_is_english
 
 module_path = os.path.abspath(os.path.join('..', '..', '..', '..', os.getcwd()))
@@ -76,12 +78,6 @@ class WindowsMaker:
         match_3_window = " ".join(all_preceding_ws[-3:])
         match_6_window = " ".join(all_preceding_ws[-6:])
         match_10_window = " ".join(all_preceding_ws[-10:])
-
-        # print(post_txt[:curr_occurence_offset + len(match['cand_match']) + 1])
-        # print(match_3_window + ' - ' + match['cand_match'])
-        # print(match_6_window + ' - ' + match['cand_match'])
-        # print(match_10_window + ' - ' + match['cand_match'])
-        # print("\n")
 
         return match_3_window, match_6_window, match_10_window
 
@@ -209,7 +205,7 @@ def handle_community(community):
     len_before_drop = len(df)
     df = df.drop_duplicates(subset=['stripped_txt'])
 
-    print(f"Len before drop: {len_before_drop}, after: {len(df)}")
+    # print(f"Len before drop: {len_before_drop}, after: {len(df)}")
 
     windows_maker = WindowsMaker()
     df = windows_maker.go(df)

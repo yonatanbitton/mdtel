@@ -15,6 +15,7 @@ from simstring.searcher import Searcher
 from utils import words_similarity, word_is_english, replace_puncs
 
 module_path = os.path.abspath(os.path.join('..', os.getcwd()))
+print(f"In high_recall_matcher, {module_path}")
 sys.path.append(module_path)
 
 from config import *
@@ -334,10 +335,10 @@ def get_umls_data():
     if CUILESS:
         cuiless_umls_df = pd.read_csv(cuiless_dir + os.sep + 'cuiless_terms.csv')
         umls_data = pd.concat([umls_data, cuiless_umls_df])
-        print("Added CUILESS terms")
+        # print("Added CUILESS terms")
 
     umls_data.reset_index(inplace=True)
-    print(f"After reset index: {len(umls_data)}")
+    # print(f"After reset index: {len(umls_data)}")
 
     heb_umls_list = list(umls_data['HEB'].values)
     eng_umls_list = list(umls_data[STRING_COLUMN].values)
@@ -394,7 +395,7 @@ def take_only_posts_which_has_labels(chosen_community, community_df):
     labels_df = pd.read_csv(labels_dir + os.sep + chosen_community + "_labels.csv")
     all_labeled_texts = [x.strip() for x in list(labels_df['text'].values)]
     community_df = community_df[community_df['post_txt'].apply(lambda x: x.strip() in all_labeled_texts)]
-    print(f"Number of posts: {len(community_df)}, needed: {number_of_posts_needed[chosen_community]}")
+    # print(f"Number of posts: {len(community_df)}, needed: {number_of_posts_needed[chosen_community]}")
     assert abs(len(community_df) - number_of_posts_needed[chosen_community]) < 3  # Can accept small difference
     return community_df
 
@@ -468,8 +469,6 @@ def add_eng_umls_data(eng_matches, umls_data, row):
     for match_d in eng_matches:
         idx_of_match_in_df = umls_data[umls_data[STRING_COLUMN].apply(lambda x: x.lower() == match_d['umls_match'])].index[0]
         match_cui = umls_data.iloc[idx_of_match_in_df]['CUI']
-        if match_cui == 'CUILESS':
-            print(f'CUILESS MATCH: {match_d["umls_match"]}')
         match_tui = umls_data.iloc[idx_of_match_in_df]['TUI']
         semantic_type = get_semantic_type(match_tui)
         eng_d = {'cand_match': match_d['cand_match'], 'umls_match': match_d['umls_match'], 'sim': match_d['sim'],

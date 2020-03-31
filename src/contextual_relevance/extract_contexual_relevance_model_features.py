@@ -1,5 +1,17 @@
 import os
 from subprocess import Popen
+import sys
+
+module_path = os.path.abspath(os.path.join('..', '..', os.getcwd()))
+print(f"In extract_contexual_relevance_model_features, {module_path}")
+sys.path.append(module_path)
+
+print(f"cwd: {os.getcwd()}")
+print(os.getcwd().split(os.sep)[-1])
+if os.getcwd().split(os.sep)[-1] != 'contextual_relevance':
+    new_cwd = os.path.abspath(os.path.join(os.getcwd(), "src", "contextual_relevance"))
+    print(f"Changing cwd from {os.getcwd()}, to: {new_cwd}")
+    os.chdir(new_cwd)
 
 scripts_path = 'extract_dataset_with_feats'
 

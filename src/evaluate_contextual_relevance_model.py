@@ -2,25 +2,21 @@ import argparse
 import json
 import os
 import sys
+from collections import namedtuple, Counter, defaultdict
 
 import numpy as np
 import pandas as pd
-from seqeval.metrics import accuracy_score as seq_eval_acc
-from seqeval.metrics import classification_report
-from seqeval.metrics import f1_score as seq_eval_f1
-from seqeval.metrics import performance_measure
-from seqeval.metrics import precision_score as seq_eval_precision
-from seqeval.metrics import recall_score as seq_eval_recall
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import f1_score, recall_score, roc_auc_score, accuracy_score, confusion_matrix, precision_score
 from sklearn_crfsuite import metrics
 
-from utils import SequenceTagger, words_similarity
-
-module_path = os.path.abspath(os.path.join('..', '..', os.getcwd()))
+module_path = os.path.abspath(os.path.join('..', os.getcwd()))
+print(f"In evaluate_contextual_relevance_model, {module_path}")
 sys.path.append(module_path)
 
-from collections import namedtuple, Counter, defaultdict
+
+from utils import SequenceTagger, words_similarity
+from config import FINAL_LABELS_COL, CHEMICAL_OR_DRUG, DISORDER
 
 Entity = namedtuple("Entity", "e_type start_offset end_offset")
 DebugEntity = namedtuple("T", "s_t i s e")
@@ -46,20 +42,46 @@ def evaluate_community(community):
 
     test_labels_df = get_test_df_with_preds_and_annotations(community, test_df, labels_df, chemicals_experiment_data, disorders_experiment_data)
 
-    token_level_seq_eval_df, token_level_crf_df, token_level_io_crf_df, token_level_io_seq_eval_df, TN = token_evaluation(community, test_labels_df)
-    entity_level_eval_df = entity_level_evaluation(community, TN)
+    token_level_crf_df, token_level_io_crf_df, TN = token_evaluation(community, test_labels_df)
+    entity_level_eval_df = entity_level_evaluation(community, test_labels_df, TN)
 
-    print_errors(community, 'FN')
-    print_errors(community, 'FP')
+    # print_errors(community, 'FN')
+    # print_errors(community, 'FP')
+
+    all_annotated_terms, annotated_terms_stats = get_annotated_terms_stats(labels_df, community)
+    filtered_out_col = '% High recall candidates filtered out'
+    high_recall_cands_filtered_out_stats = pd.Series({DISORDER: disorders_experiment_data[filtered_out_col],
+                                                      CHEMICAL_OR_DRUG: chemicals_experiment_data[filtered_out_col]},
+                                                     name=community)
 
     res_d = {'entity_level_eval_df': entity_level_eval_df,
-             'token_level_seq_eval_df': token_level_seq_eval_df,
              'token_level_crf_df': token_level_crf_df,
-             'token_level_io_seq_eval_df': token_level_io_seq_eval_df,
-             'token_level_io_crf_df': token_level_io_crf_df
+             'token_level_io_crf_df': token_level_io_crf_df,
+             'all_annotated_terms': all_annotated_terms,
+             'annotated_terms_stats': annotated_terms_stats,
+             filtered_out_col: high_recall_cands_filtered_out_stats
              }
 
     return res_d
+
+
+def get_annotated_terms_stats(labels_df, community):
+    all_disorder_annotated_terms = get_annotated_terms_for_semantic_type(labels_df, DISORDER)
+    all_chemicals_annotated_terms = get_annotated_terms_for_semantic_type(labels_df, CHEMICAL_OR_DRUG)
+    all_annotated_terms = {DISORDER: all_disorder_annotated_terms, CHEMICAL_OR_DRUG: all_chemicals_annotated_terms}
+    annotated_terms_stats_d = {'# Disorders': len(all_disorder_annotated_terms),
+                               '# Chemicals or drugs': len(all_chemicals_annotated_terms),
+                               '# Unique disorders': len(set(all_disorder_annotated_terms)),
+                               '# Unique chemicals or drugs': len(set(all_chemicals_annotated_terms))}
+    annotated_terms_stats = pd.Series(annotated_terms_stats_d, name=community.capitalize())
+    return all_annotated_terms, annotated_terms_stats
+
+
+def get_annotated_terms_for_semantic_type(labels_df, semantic_type):
+    all_annotated_terms = []
+    for lst in labels_df[FINAL_LABELS_COL].apply(lambda lst: [m['term'] for m in lst if m['label'] == semantic_type]).values:
+        all_annotated_terms += lst
+    return all_annotated_terms
 
 
 def print_errors(community, error_type):
@@ -75,11 +97,12 @@ def get_test_df_with_preds_and_annotations(community, test_df, labels_df, chemic
     return test_labels_df
 
 
-def entity_level_evaluation(community, TN):
-    FP = sum(matches_per_community[community]['FP'].values())
-    TP = sum(matches_per_community[community]['TP'].values())
-    FN = sum(matches_per_community[community]['FN'].values())
+def entity_level_evaluation(community, test_labels_df, TN):
+    TP = test_labels_df['predicted_and_annotated'].apply(len).sum()
+    FP = test_labels_df['predicted_not_annotated'].apply(len).sum()
+    FN = test_labels_df['annotated_not_predicted'].apply(len).sum()
     eval_d = get_metrics_based_on_fn_fp_tp(FN, FP, TP, TN)
+
     entity_level_eval_df = pd.DataFrame([eval_d], index=[community])
     return entity_level_eval_df
 
@@ -90,8 +113,9 @@ def get_metrics_based_on_fn_fp_tp(FN, FP, TP, TN):
     precision = round((TP / (TP + FP)), 2)
     f1_score_val = round((2 * TP / (2 * TP + FP + FN)), 2)
     accuracy = round((TP + TN) / (TP + TN + FP + FN), 2)
+    support = FN + TP
     cm = np.array([[TN, FP], [FN, TP]])
-    scores = {'accuracy': accuracy, 'recall': recall, 'precision': precision, 'f1_score': f1_score_val, 'cm': cm}
+    scores = {'accuracy': accuracy, 'recall': recall, 'precision': precision, 'f1_score': f1_score_val, 'support': support, 'cm': cm}
     return scores
 
 
@@ -102,9 +126,6 @@ def get_data(community):
     labels_df[FINAL_LABELS_COL] = labels_df[FINAL_LABELS_COL].apply(lambda x: json.loads(x))
 
     print(f"Number of instances: train: {len(train_community_df)}, test: {len(test_community_df)}:")
-    print(f"Train & test label distribution:")
-    print(train_community_df['yi'].value_counts())
-    print(test_community_df['yi'].value_counts())
 
     return train_community_df, test_community_df, labels_df
 
@@ -148,24 +169,22 @@ def token_evaluation(community, test_labels_df):
     y_pred, y_true = get_bio(community, test_labels_df)
 
     labels = ['B-D', 'I-D', 'B-C', 'I-C']
-    token_level_crf_df, token_level_seq_eval_df = get_token_eval_for_y_true_pred(community, y_pred, y_true, labels)
+    token_level_crf_df = get_token_eval_for_y_true_pred(community, y_pred, y_true, labels)
 
     y_true_i_o = [bio_to_io(lst) for lst in y_true]
     y_pred_i_o = [bio_to_io(lst) for lst in y_pred]
     labels = ['D', 'C']
-    token_level_io_crf_df, token_level_io_seq_eval_df = get_token_eval_for_y_true_pred(community, y_true_i_o, y_pred_i_o, labels)
+    token_level_io_crf_df = get_token_eval_for_y_true_pred(community, y_true_i_o, y_pred_i_o, labels)
 
     TN = get_tn(y_pred, y_true)
 
-    return token_level_seq_eval_df, token_level_crf_df, token_level_io_crf_df, token_level_io_seq_eval_df, TN
+    return token_level_crf_df, token_level_io_crf_df, TN
 
 
 def get_token_eval_for_y_true_pred(community, y_pred, y_true, labels):
-    seq_eval_scores = get_seqeval_metrics(y_pred, y_true)
     crf_scores = get_crf_metrics(y_pred, y_true, labels)
-    token_level_seq_eval_df = pd.DataFrame([seq_eval_scores], index=[community])
     token_level_crf_df = pd.DataFrame([crf_scores], index=[community])
-    return token_level_crf_df, token_level_seq_eval_df
+    return token_level_crf_df
 
 
 def get_tn(y_pred, y_true):
@@ -201,17 +220,6 @@ def get_bio_for_row(annotation_tagger, pred_tagger, row):
     assert len(post_y_true) == len(post_y_pred)
     return post_y_true, post_y_pred
 
-def get_seqeval_metrics(y_pred, y_true):
-    seq_eval_token_f1_score = round(seq_eval_f1(y_true, y_pred), 2)
-    seq_eval_token_acc_score = round(seq_eval_acc(y_true, y_pred), 2)
-    seq_eval_token_recall_score = round(seq_eval_recall(y_true, y_pred), 2)
-    seq_eval_token_precision_score = round(seq_eval_precision(y_true, y_pred), 2)
-    report = classification_report(y_true, y_pred, digits=2)
-    cm_dict = performance_measure(y_true, y_pred)
-    cm = np.array([[cm_dict['TN'], cm_dict['FP']], [cm_dict['FN'], cm_dict['TP']]])
-    res_d = {'accuracy': seq_eval_token_acc_score, 'recall': seq_eval_token_recall_score, 'f1_score': seq_eval_token_f1_score,
-             'precision': seq_eval_token_precision_score, 'cm': cm, 'report': report}
-    return res_d
 
 
 def get_crf_metrics(y_pred, y_true, labels):
@@ -219,11 +227,14 @@ def get_crf_metrics(y_pred, y_true, labels):
     token_recall_score = round(metrics.flat_recall_score(y_true, y_pred, average='weighted', labels=labels), 2)
     token_f1_score = round(metrics.flat_f1_score(y_true, y_pred, average='weighted', labels=labels), 2)
     token_precision_score = round(metrics.flat_precision_score(y_true, y_pred, average='weighted', labels=labels), 2)
-    report = metrics.flat_classification_report(y_true, y_pred, labels=labels)
-    cm_dict = performance_measure(y_true, y_pred)
+    report = metrics.flat_classification_report(y_true, y_pred, labels=labels, output_dict=True)
+    report_df = pd.DataFrame(report).T
+    report_df = report_df.round(2)
+    cm_dict = metrics.performance_measure(y_true, y_pred)
     cm = np.array([[cm_dict['TN'], cm_dict['FP']], [cm_dict['FN'], cm_dict['TP']]])
+    support = cm_dict['FN'] + cm_dict['TP']
     res_d = {'accuracy': token_acc_score, 'recall': token_recall_score, 'f1_score': token_f1_score,
-             'precision': token_precision_score, 'cm': cm, 'report': report}
+             'precision': token_precision_score, 'support': support, 'cm': cm, 'report': report_df}
     return res_d
 
 
@@ -234,8 +245,9 @@ def get_items_in_left_lst_but_not_in_right_lst(l1, l2):
         for pred in l2:
             if words_similarity(ann['term'], pred['term']) > 0.8 and abs(
                     ann['start_offset'] - pred['start_offset']) <= 2:
-                found_pred = True
-                break
+                if ann['label'] == pred['label']:
+                    found_pred = True
+                    break
         if not found_pred:
             in_l1_but_not_in_l2.append(ann)
 
@@ -291,11 +303,11 @@ def add_predictions_to_test_df(community, grouped, labels_df, test_df, chemicals
 
 def add_types_to_counter(community, dict_key, row_type, test_labels_df):
     for row_idx, row in test_labels_df.iterrows():
-        annotated_not_predicted = row[row_type]
+        r = row[row_type]
         file_name = row['file_name']
-        for t in annotated_not_predicted:
+        for t in r:
             filenames_per_community[community][dict_key][t['term']].append(DebugEntity(file_name, t['label'], t['start_offset'], t['end_offset']))
-        matches_per_community[community][dict_key] += Counter([m['term'] for m in annotated_not_predicted])
+        matches_per_community[community][dict_key] += Counter([m['term'] for m in r])
 
 
 def get_data_from_training_and_testing(chemicals_experiment_data, disorders_experiment_data, test_df):
@@ -356,6 +368,8 @@ def find_best_threshold(X_test, community, y_pred, y_test):
         ['cand_match', 'umls_match', 'hard_y_pred', 'yi', 'file_name', 'match_eng', 'semantic_type',
          'curr_occurence_offset', 'match_6_window']]
     best_experiment_data['X_test_seq_data'] = X_test_seq_data
+    hard_y_pred_value_counts = X_test['hard_y_pred'].value_counts()
+    best_experiment_data['% High recall candidates filtered out'] = round(hard_y_pred_value_counts.loc[0] / hard_y_pred_value_counts.sum(), 2)
     return best_experiment_data
 
 
@@ -387,41 +401,101 @@ def get_measures_for_y_test_and_hard_y_pred(hard_y_pred, y_pred, y_test):
 
 
 def main():
+    print("Starting main")
     depression_results = evaluate_community('depression')
     diabetes_results = evaluate_community('diabetes')
     sclerosis_results = evaluate_community('sclerosis')
 
-    titles_for_keys = {'entity_level_eval_df': 'Entity level eval',
-                       'token_level_seq_eval_df': 'Token level seqeval performance',
-                       'token_level_crf_df': 'Token level crfsuite performance',
-                       # 'token_level_io_crf_df': 'Token level IO tags seqeval performance',
-                       # 'token_level_io_seq_eval_df': 'Token level IO tags crfsuite performance',
+    titles_for_keys = {'entity_level_eval_df': 'Entity level performance',
+                       'token_level_crf_df': 'Token level performance',
                        }
 
     for k, title in titles_for_keys.items():
-        print_res_df(diabetes_results[k], sclerosis_results[k], depression_results[k], title=title)
+        export_results(diabetes_results[k], sclerosis_results[k], depression_results[k], title=title)
+
+    export_stats(depression_results, diabetes_results, sclerosis_results)
 
     print("Done")
 
 
-def print_res_df(diabetes_score, sclerosis_score, depression_score, title):
+def export_stats(depression_results, diabetes_results, sclerosis_results):
+    export_annotation_stats(depression_results, diabetes_results, sclerosis_results)
+    high_recall_cands_filtered_out_df = pd.DataFrame([diabetes_results['% High recall candidates filtered out'],
+                                                      sclerosis_results['% High recall candidates filtered out'],
+                                                      depression_results['% High recall candidates filtered out']])
+    high_recall_cands_filtered_out_df[DISORDER] = high_recall_cands_filtered_out_df[DISORDER].apply(
+        lambda x: str(int(x * 100)) + "%")
+    high_recall_cands_filtered_out_df[CHEMICAL_OR_DRUG] = high_recall_cands_filtered_out_df[CHEMICAL_OR_DRUG].apply(
+        lambda x: str(int(x * 100)) + "%")
+    high_recall_cands_filtered_out_df.to_excel(results_dir + os.sep + "High recall candidates filtered out.xlsx")
+    print(high_recall_cands_filtered_out_df)
+
+
+def export_annotation_stats(depression_results, diabetes_results, sclerosis_results):
+    depression_terms_stats = depression_results['annotated_terms_stats']
+    diabetes_terms_stats = diabetes_results['annotated_terms_stats']
+    sclerosis_terms_stats = sclerosis_results['annotated_terms_stats']
+    annotated_terms_stats_df = pd.DataFrame([depression_terms_stats, diabetes_terms_stats, sclerosis_terms_stats])
+    annotated_terms_stats_df.at['Total', '# Disorders'] = annotated_terms_stats_df['# Disorders'].sum()
+    annotated_terms_stats_df.at['Total', '# Chemicals or drugs'] = annotated_terms_stats_df['# Chemicals or drugs'].sum()
+    annotated_terms_stats_df['# Annotated terms'] = annotated_terms_stats_df['# Disorders'] + annotated_terms_stats_df['# Chemicals or drugs']
+    depression_annotated_terms = depression_results['all_annotated_terms']
+    diabetes_annotated_terms = diabetes_results['all_annotated_terms']
+    sclerosis_annotated_terms = sclerosis_results['all_annotated_terms']
+    for semantic_type in [DISORDER, CHEMICAL_OR_DRUG]:
+        all_semantic_type_terms = depression_annotated_terms[semantic_type] + diabetes_annotated_terms[semantic_type] + \
+                                  sclerosis_annotated_terms[semantic_type]
+        num_unique_semantic_type_terms = len(set(all_semantic_type_terms))
+        if semantic_type == DISORDER:
+            annotated_terms_stats_df.at['Total', '# Unique disorders'] = num_unique_semantic_type_terms
+        elif semantic_type == CHEMICAL_OR_DRUG:
+            annotated_terms_stats_df.at['Total', '# Unique chemicals or drugs'] = num_unique_semantic_type_terms
+
+    annotated_terms_stats_df['# Unique annotated terms'] = annotated_terms_stats_df['# Unique disorders'] + annotated_terms_stats_df['# Unique chemicals or drugs']
+
+    annotated_terms_stats_df['# Unique annotated terms'] = annotated_terms_stats_df['# Unique disorders'] + annotated_terms_stats_df['# Unique chemicals or drugs']
+
+    cols_order = ['# Disorders', '# Chemicals or drugs', '# Annotated terms', '# Unique disorders', '# Unique chemicals or drugs', '# Unique annotated terms']
+    annotated_terms_stats_df = annotated_terms_stats_df[cols_order]
+
+    annotated_terms_stats_df.to_excel(results_dir + os.sep + "Annotated terms stats.xlsx")
+    print(annotated_terms_stats_df)
+
+
+def get_weighted_average(df):
+    weighted_avg = {}
+    for c in ['accuracy', 'f1_score', 'precision', 'recall']:
+        wm_numpy = np.average(df[c], weights=df['support'])
+        weighted_avg[c] = round(wm_numpy, 2)
+
+    weighted_avg_ser = pd.Series(weighted_avg)
+    return weighted_avg_ser
+
+def export_results(diabetes_score, sclerosis_score, depression_score, title):
     print(title)
-    res_df = pd.DataFrame(pd.concat([diabetes_score, sclerosis_score, depression_score]), columns=['accuracy', 'f1_score', 'precision', 'recall'])
-    avg = res_df.mean().apply(lambda x: round(x, 2))
-    res_df.loc['average'] = avg
+    res_df = pd.DataFrame(pd.concat([diabetes_score, sclerosis_score, depression_score]), columns=['accuracy', 'f1_score', 'precision', 'recall', 'support'])
+    # avg = res_df[['accuracy', 'f1_score', 'precision', 'recall']].mean().apply(lambda x: round(x, 2))
+    weighted_avg = get_weighted_average(res_df)
+    # res_df.loc['average'] = avg
+    res_df.loc['weighted avg'] = weighted_avg
     print(res_df)
-    for key in ['cm', 'report']:
+    res_df.to_excel(results_dir + os.sep + title + '.xlsx')
+    # for key in ['cm', 'report']:
+    for key in ['report']:
         if key in diabetes_score:
             print()
-            print_key('Diabetes', diabetes_score, key)
-            print_key('Sclerosis', sclerosis_score, key)
-            print_key('Depression', depression_score, key)
+            export_key('Diabetes', diabetes_score, key, title)
+            export_key('Sclerosis', sclerosis_score, key, title)
+            export_key('Depression', depression_score, key, title)
     print()
 
-def print_key(community, score, key):
+def export_key(community, score, key, title):
     print(community)
-    print(score.iloc[0][key])
+    rep = score.iloc[0][key]
+    print(rep)
+    rep.to_excel(results_dir + os.sep + community + " " + title + ' ' + key + ".xlsx", index=True)
     print()
+
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
@@ -431,10 +505,10 @@ if __name__ == '__main__':
         data_dir = parsed_args.data_dir
         print(f"Got data_dir: {data_dir}")
     else:
-        from config import data_dir, FINAL_LABELS_COL, CHEMICAL_OR_DRUG, DISORDER
+        from config import data_dir
 
+    print("Running eval")
     training_dataset_dir = data_dir + r"contextual_relevance\extracted_training_dataset"
-    output_models_dir = data_dir + r"contextual_relevance\output_models"
     labels_dir = data_dir + r'manual_labeled_v2\doccano\merged_output'
     results_dir = data_dir + r'results'
 
