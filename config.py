@@ -10,8 +10,6 @@ data_dir = r"E:\mdtel_data\data" + os.sep
 umls_similarity_path = r'E:\umls_perl\UMLS-Similarity-1.47\utils'
 FINAL_LABELS_COL = 'merged_inner_and_outer'
 
-DEBUG = False
-
 disorder_lines = """
 DISO|Disorders|T020|Acquired Abnormality
 DISO|Disorders|T190|Anatomical Abnormality

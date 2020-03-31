@@ -1,5 +1,3 @@
-import sys
-
 from fastai.text import *
 
 module_path = os.path.abspath(os.path.join('..', '..', '..', '..', os.getcwd()))

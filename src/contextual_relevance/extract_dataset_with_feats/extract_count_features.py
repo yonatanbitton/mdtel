@@ -1,7 +1,8 @@
 import os
-import pandas as pd
-from collections import Counter
 import sys
+from collections import Counter
+
+import pandas as pd
 
 module_path = os.path.abspath(os.path.join('..', '..', '..', os.getcwd()))
 sys.path.append(module_path)

@@ -23,20 +23,8 @@ from config import *
 input_dir = data_dir + r"high_recall_matcher\posts\lemlda"
 umls_df_data_path = data_dir + r"high_recall_matcher\heb_to_eng_mrconso_disorders_chemicals_kb.csv"
 output_dir = data_dir + r"high_recall_matcher\output"
-
-CUILESS = True
 cuiless_dir = data_dir + r"manual_labeled_v2\items_not_in_umls"
 acronyms_dir = data_dir + r"manual_labeled_v2\acronyms"
-
-DEBUG = False
-post_num = 338
-debugging_term = 'נרות'
-
-if DEBUG:
-    print(f"*** DEBUG MODE: post_num: {post_num}, debugging_term: {debugging_term} ***")
-else:
-    print(f"Debug == False. Might take some time.")
-
 
 def main():
     heb_db, eng_db, umls_data = get_umls_data()
@@ -59,21 +47,13 @@ def handle_community(chosen_community, heb_searcher, eng_searcher, umls_data):
     number_of_posts = len(community_df)
 
     for idx, (row_idx, row) in enumerate(community_df.iterrows()):
-        if DEBUG:
-            if row['file_name'] != post_num: # 14
-                continue
         msg_matches_found = get_english_and_hebrew_matches(eng_searcher, heb_searcher, row, umls_data)
-        if DEBUG:
-            print(msg_matches_found)
         all_matches_found.append(json.dumps(msg_matches_found, ensure_ascii=False))
         print_stats(idx, number_of_posts)
 
     community_df['matches_found'] = all_matches_found
 
-    if DEBUG:
-        output_path = output_dir + os.sep + chosen_community + "_debug.csv"
-    else:
-        output_path = output_dir + os.sep + chosen_community + ".csv"
+    output_path = output_dir + os.sep + chosen_community + ".csv"
 
     community_df.to_csv(output_path, encoding='utf-8-sig', index=False)
 
@@ -135,14 +115,10 @@ def find_umls_match_fast(msg_txt, searcher, row, msg_key_lang):
             search_result = searcher.ranked_search(cand_term, low_similarity_threshold)
             if search_result != []:
                 cosine_sim, umls_match = search_result[0]  # Cosine-Sim. I can demand another sim
-                if DEBUG and umls_match == debugging_term:
-                    print("Here")
                 sim = words_similarity(umls_match, cand_term)
                 if is_good_match(sim, umls_match, i, up_similarity_threshold):
                     all_matches_found = add_match_data(all_matches_found, cand_term, msg_key_lang, row, sim, umls_match)
-                    if DEBUG and umls_match == debugging_term:
-                        print("After")
-                        print(all_matches_found)
+
 
     all_matches_found_with_full_occs = get_matches_with_full_occs(all_matches_found)
     return all_matches_found_with_full_occs

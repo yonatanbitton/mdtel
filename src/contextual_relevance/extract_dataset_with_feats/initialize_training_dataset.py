@@ -13,13 +13,12 @@ from utils import words_similarity, replace_puncs, word_is_english
 module_path = os.path.abspath(os.path.join('..', '..', '..', '..', os.getcwd()))
 sys.path.append(module_path)
 
-from config import data_dir, DEBUG
+from config import data_dir
 
 # input_dir = data_dir + r"contextual_relevance\posts"
 input_dir = data_dir + r"high_recall_matcher\output"
 output_dir = data_dir + r"contextual_relevance\initialized_training_dataset"
 
-# DEBUG = True
 SIMILARITY_THRESHOLD = 0.85
 
 class WindowsMaker:
@@ -196,10 +195,7 @@ class WindowsMaker:
 def handle_community(community):
     # print(f"community: {community}")
 
-    if DEBUG:
-        df = pd.read_csv(input_dir + os.sep + community + "_debug.csv")
-    else:
-        df = pd.read_csv(input_dir + os.sep + community + ".csv")
+    df = pd.read_csv(input_dir + os.sep + community + ".csv")
 
     df['stripped_txt'] = df['post_txt'].apply(lambda x: x.strip())
     len_before_drop = len(df)

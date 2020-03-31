@@ -8,7 +8,6 @@ import pandas as pd
 
 from utils import words_similarity, replace_puncs
 
-
 module_path = os.path.abspath(os.path.join('..', '..', '..', '..', os.getcwd()))
 sys.path.append(module_path)
 
@@ -154,13 +153,7 @@ def calculate_could_be_matched(could_be_matched, high_recall_matches_lst, label_
 
 def get_labels_for_high_recall_matches(extract_feats_df, labels_df, relevant_feats_df):
     high_recall_matches_matched_for_file_name = defaultdict(list)
-    ### DEBUG ###
-    debug = False
-    if debug:
-        print("DEBUG")
-        file_name_to_debug = 127
-        relevant_feats_df = relevant_feats_df[relevant_feats_df['file_name'] == file_name_to_debug]
-        labels_df = labels_df[labels_df['file_name'] == file_name_to_debug]
+
     all_labels = []
     for r_idx, row in relevant_feats_df.iterrows():
         label_row = labels_df[labels_df['file_name'] == row['file_name']].iloc[0]
