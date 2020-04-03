@@ -46,7 +46,7 @@ def evaluate_community(community):
     entity_level_eval_df = entity_level_evaluation(community, test_labels_df, TN)
 
     # print_errors(community, 'FN')
-    # print_errors(community, 'FP')
+    print_errors(community, 'FP')
 
     all_annotated_terms, annotated_terms_stats = get_annotated_terms_stats(labels_df, community)
     filtered_out_col = '% High recall candidates filtered out'
@@ -85,6 +85,11 @@ def get_annotated_terms_for_semantic_type(labels_df, semantic_type):
 
 
 def print_errors(community, error_type):
+    # import pickle
+    # error_analysis_dir = r'C:\Users\PC-1\PycharmProjects\mdtel\debug\error_analysis'
+    # error_data = {'matches_per_community': matches_per_community, 'filenames_per_community': filenames_per_community}
+    # with open(error_analysis_dir + 'community_errors', 'wb') as f:
+    #     pickle.dumps(error_data, f)
     most_common_error = matches_per_community[community][error_type].most_common(n_most_common)
     print(f"most_common {error_type}s: {community}, number: {len(matches_per_community[community][error_type])}")
     for p in most_common_error:
@@ -126,11 +131,6 @@ def get_data(community):
     labels_df[FINAL_LABELS_COL] = labels_df[FINAL_LABELS_COL].apply(lambda x: json.loads(x))
 
     print(f"Number of instances: train: {len(train_community_df)}, test: {len(test_community_df)}:")
-    print(f"train value counts")
-    print(train_community_df['yi'].value_counts())
-
-    print(f"test value counts")
-    print(test_community_df['yi'].value_counts())
 
     return train_community_df, test_community_df, labels_df
 
@@ -279,9 +279,9 @@ def add_predictions_to_test_df(community, grouped, labels_df, test_df, chemicals
     for idx, post_df in grouped:
         post_file_name = post_df['file_name'].iloc[0]
         post_disorders_data = disorders_seq_data[disorders_seq_data['file_name'] == post_file_name]
-        post_disorders_data = post_disorders_data[post_disorders_data['hard_y_pred'] == 1]
+        # post_disorders_data = post_disorders_data[post_disorders_data['hard_y_pred'] == 1]
         post_chemicals_data = chemicals_seq_data[chemicals_seq_data['file_name'] == post_file_name]
-        post_chemicals_data = post_chemicals_data[post_chemicals_data['hard_y_pred'] == 1]
+        # post_chemicals_data = post_chemicals_data[post_chemicals_data['hard_y_pred'] == 1]
         disorders_labels = get_labels_for_semantic_type(post_disorders_data)
         chemical_labels = get_labels_for_semantic_type(post_chemicals_data)
         joint_labels = disorders_labels + chemical_labels
@@ -298,13 +298,6 @@ def add_predictions_to_test_df(community, grouped, labels_df, test_df, chemicals
     test_labels_df['predicted_and_annotated'] = test_labels_df.apply(lambda row: get_items_in_both_lsts(row[FINAL_LABELS_COL], row['prediction_labels']), axis=1)
     test_labels_df['predicted_not_annotated'] = test_labels_df.apply(lambda row: get_items_in_left_lst_but_not_in_right_lst(row['prediction_labels'], row[FINAL_LABELS_COL]), axis=1)
     test_labels_df['annotated_not_predicted'] = test_labels_df.apply(lambda row: get_items_in_left_lst_but_not_in_right_lst(row[FINAL_LABELS_COL], row['prediction_labels']), axis=1)
-
-    error_analysis_p = r'C:\Users\PC-1\PycharmProjects\mdtel\debug\error_analysis'
-    errors_df = test_labels_df[['text', 'file_name', 'annotated_not_predicted', 'predicted_not_annotated']]
-    errors_df = errors_df[errors_df.apply(lambda row: len(row['annotated_not_predicted']) > 0 or len(row['predicted_not_annotated']) > 0, axis=1)]
-    for c in ['annotated_not_predicted', 'predicted_not_annotated']:
-        errors_df[c] = errors_df[c].apply(lambda x: json.dumps(x, ensure_ascii=False))
-    errors_df.to_excel(error_analysis_p + os.sep + community + "_errors.xlsx", index=False)
 
     add_types_to_counter(community, 'FN', 'annotated_not_predicted', test_labels_df)
     add_types_to_counter(community, 'FP', 'predicted_not_annotated', test_labels_df)

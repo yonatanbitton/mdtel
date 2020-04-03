@@ -62,3 +62,60 @@ graph TD
   C -->|Language Model| D
 	C -->|UMLS Relatedness| D
 	C -->|Additional Features| D
+
+### 4.1 before Elhadad
+graph TD
+	A(Online health community)
+  B(High recall matcher)
+  C(Contextual relevance model)
+  D(Relevant medical terms)
+  style D fill:#8CFA78
+  E1(Intrinstic evaluation)
+  style E1 fill:#5DADE2
+  E2(Extrinstric evaluation)
+  style E2 fill:#5DADE2
+
+
+  subgraph UMLS MRCONSO
+  trans_model(Transliteration model)
+  dom_knowledge(Domain knowledge glossaries)
+  final_terms[(fa:fa-database UMLS MRCONSO<br />with transliterated <br />and translated terms)]
+  dom_knowledge --> |Translate and match CUI| final_terms
+  trans_model -->|Transliterating a subset <br /> of the UMLS terms <br /> to target language| final_terms
+  end
+  A -->|Forum Post| B
+  B-. Match post terms <br /> in target language .-> final_terms
+  final_terms-. Retrieving CUI and STR .-> B
+  B -->|Medical term with CUI and STR| C
+  C -->|Language Model| D
+	C -->|UMLS Relatedness| D
+	C -->|Additional Features| D
+  D --> E1
+  D --> E2
+
+
+### eval diagram
+graph TD
+eval(Evaluation)
+
+subgraph Intrinsic
+annotation(Annotation forum posts <br />Disorders and Chemicals or drugs)
+method(Cross lingual<br /> UMLS normalization)
+results_int(Results)
+annotation -->  method
+method --> |Measuring performance| results_int
+end
+
+subgraph Extrinsic
+collect(Collecting search queries without results<br />submitted in last 3 years)
+compare(Compare results)
+results_ext(Results)
+collect --> |Baseline - Fix with <br />Google spelling suggestion| compare
+collect --> |Fix with <br />UMLS Normalization| compare
+compare --> |Compare quantity<br /> performance| results_ext
+compare --> |Compare quality<br /> performance| results_ext
+
+end
+
+eval .-> collect
+eval .-> annotation

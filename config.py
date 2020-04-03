@@ -1,5 +1,3 @@
-print("Running config")
-
 import os
 
 # module_path = os.path.abspath(os.path.join(os.getcwd()))

@@ -310,10 +310,8 @@ def get_umls_data():
 
     cuiless_umls_df = pd.read_csv(cuiless_dir + os.sep + 'cuiless_terms.csv')
     umls_data = pd.concat([umls_data, cuiless_umls_df])
-    # print("Added CUILESS terms")
 
     umls_data.reset_index(inplace=True)
-    # print(f"After reset index: {len(umls_data)}")
 
     heb_umls_list = list(umls_data['HEB'].values)
     eng_umls_list = list(umls_data[STRING_COLUMN].values)
