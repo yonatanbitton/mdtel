@@ -1,4 +1,4 @@
-reproduce_paper_tables# MDTEL - Medical-Deep-Transliteration-Entity-Linking
+# MDTEL - Medical-Deep-Transliteration-Entity-Linking
 
 This repository contains the code for the paper "Cross-Lingual UMLS Entity Linking in Online Health Communities" 
 
