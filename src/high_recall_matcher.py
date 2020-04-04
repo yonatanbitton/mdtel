@@ -32,9 +32,9 @@ def main():
     heb_searcher = Searcher(heb_db, CosineMeasure())
     eng_searcher = Searcher(eng_db, CosineMeasure())
 
-    handle_community(SCLEROSIS, heb_searcher, eng_searcher, umls_data)
+    # handle_community(SCLEROSIS, heb_searcher, eng_searcher, umls_data)
     # handle_community(DIABETES, heb_searcher, eng_searcher, umls_data)
-    # handle_community(DEPRESSION, heb_searcher, eng_searcher, umls_data)
+    handle_community(DEPRESSION, heb_searcher, eng_searcher, umls_data)
 
     print("Done")
 
