@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import pickle
 import sys
 from collections import namedtuple, Counter, defaultdict
 
@@ -358,11 +359,22 @@ def train_semantic_type(community, train_df, test_df, semantic_type):
     X_train_matrix = X_train[selected_feats]
     X_test_matrix = X_test[selected_feats]
     model.fit(X_train_matrix, y_train)
+
     y_pred = [x[1] for x in model.predict_proba(X_test_matrix)]
 
     best_experiment_data = find_best_threshold(X_test, community, y_pred, y_test)
 
+    export_model_data(best_experiment_data, community, model, semantic_type)
+
     return best_experiment_data
+
+
+def export_model_data(best_experiment_data, community, model, semantic_type):
+    model_path = os.path.join(trained_rf_models_dir,
+                              f'finalized_model_{community}_{semantic_type.lower().replace(" ", "_")}.sav')
+    model_data_to_dump = {'model': model, 'threshold': best_experiment_data['threshold']}
+    pickle.dump(model_data_to_dump, open(model_path, 'wb'))
+    print(f"Dumped model to path: {model_path}")
 
 
 def find_best_threshold(X_test, community, y_pred, y_test):
@@ -399,7 +411,7 @@ def get_results_for_threshold(threshold, community, y_test, y_pred):
     acc, cm, f1_score_score, precision_val, recall_score_score = get_measures_for_y_test_and_hard_y_pred(hard_y_pred, y_pred, y_test)
     experiment_data = {'f1_score': f1_score_score, 'accuracy': acc, 'precision': precision_val,
                        'recall': recall_score_score, 'community': community, 'confusion_matrix': cm,
-                       'hard_y_pred': hard_y_pred}
+                       'hard_y_pred': hard_y_pred, 'threshold': threshold}
 
     score = f1_score_score
     return experiment_data, score
@@ -523,6 +535,7 @@ if __name__ == '__main__':
 
     print("Running eval")
     training_dataset_dir = data_dir + r"contextual_relevance\extracted_training_dataset"
+    trained_rf_models_dir = data_dir + r"contextual_relevance\trained_rf_models"
     labels_dir = data_dir + r'manual_labeled_v2\doccano\merged_output'
     results_dir = data_dir + r'results'
 
