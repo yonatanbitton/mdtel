@@ -82,6 +82,26 @@ def get_relatedness_dict(community):
         calculated_relatedness_dict[term] = relatedness
     return calculated_relatedness_dict
 
+def extract_relatedness_feats_for_df(post_df, community):
+    calculated_relatedness_dict = get_relatedness_dict(community)
+    all_relatedness = []
+    for row_idx, row in post_df.iterrows():
+        eng_match = row['match_eng']
+
+        if eng_match in all_cuiless_terms:
+            relatedness = 1
+        elif eng_match not in calculated_relatedness_dict:
+            splitted_term = eng_match.split("(")[0].strip()
+            if splitted_term in calculated_relatedness_dict:
+                relatedness = float(calculated_relatedness_dict[splitted_term])
+            else:
+                relatedness = -1
+        else:
+            relatedness = float(calculated_relatedness_dict[eng_match])
+        all_relatedness.append(relatedness)
+
+    post_df['relatedness'] = all_relatedness
+    return post_df
 
 if __name__ == '__main__':
     print(f"Extracting relatedness features")

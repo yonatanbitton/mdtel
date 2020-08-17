@@ -98,6 +98,31 @@ def get_ulmfit_model():
     # print("\n".join(ulmfit_model.predict(TEXT, N_WORDS, temperature=0.9) for _ in range(N_SENTENCES)))
     return ulmfit_model
 
+def extract_lm_feats_for_df(post_df):
+    print(f'extract_lm_feats_for_df for df at len {len(post_df)}')
+    ulmfit_model, ngram_model = get_language_models()
+    preds_10_window = []
+    preds_6_window = []
+    preds_3_window = []
+    preds_2_window = []
+
+    for row_idx, row in post_df.iterrows():
+
+        p_2_window = get_ngram_feats(row, ngram_model)
+
+        p_10_window, p_6_window, p_3_window = get_ulmfit_feats(row, ulmfit_model)
+
+        preds_2_window.append(p_2_window)  # Ngram
+
+        preds_10_window.append(p_10_window)  # ULMFit
+        preds_6_window.append(p_6_window)
+        preds_3_window.append(p_3_window)
+
+    post_df['pred_10_window'] = preds_10_window
+    post_df['pred_6_window'] = preds_6_window
+    post_df['pred_3_window'] = preds_3_window
+    post_df['pred_2_window'] = preds_2_window
+    return post_df
 
 if __name__ == '__main__':
     ulmfit_model, ngram_model = get_language_models()

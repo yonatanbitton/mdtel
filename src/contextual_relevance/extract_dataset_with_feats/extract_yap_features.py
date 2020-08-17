@@ -128,6 +128,30 @@ def try_to_find_with_prefix(all_possible_word_rows, cand_match, df, match_len):
     return best_idx_with_prefix
 
 
+def extract_yap_feats_for_df(post_df, community):
+    print(f"Yap features extractor, community: {community}")
+    post_df['txt_words'] = post_df['txt_words'].apply(json.loads)
+    post_df['all_match_occ'] = post_df['all_match_occ'].apply(json.loads)
+
+    comm_dep_trees_dir = dep_trees_dir + os.sep + community
+    comm_md_lattices_dir = md_lattices_dir + os.sep + community
+
+    all_rows_with_yap = []
+
+    global number_of_sorts
+    number_of_sorts = 0
+
+    for row_idx, row in post_df.iterrows():
+        full_fname = str(row['file_name']) + ".csv"
+        dep_tree_d = get_dep_tree_features(comm_dep_trees_dir, full_fname, row)
+        md_lattice_d = get_md_lattice_features(comm_md_lattices_dir, full_fname, row)
+
+        yap_d = {**row.to_dict(), **dep_tree_d, **md_lattice_d}
+        all_rows_with_yap.append(yap_d)
+
+    comm_df_yap = pd.DataFrame(all_rows_with_yap)
+    return comm_df_yap
+
 if __name__ == '__main__':
     handle_community("sclerosis")
     handle_community("diabetes")

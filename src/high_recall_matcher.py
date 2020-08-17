@@ -456,5 +456,16 @@ def get_eng_text(msg_tokenized_txt):
     msg_eng_text = " ".join([w.lower() for w in msg_words if w != "" and w != " " and len(w) > 2 and word_is_english(w)])
     return msg_eng_text
 
+def get_high_recall_matches_for_df(post_df):
+    heb_db, eng_db, umls_data = get_umls_data()
+    heb_searcher = Searcher(heb_db, CosineMeasure())
+    eng_searcher = Searcher(eng_db, CosineMeasure())
+    all_high_recall_matcher_found = []
+    for row_idx, post_row in post_df.iterrows():
+        high_recall_matcher_found = get_english_and_hebrew_matches(eng_searcher, heb_searcher, post_row, umls_data)
+        all_high_recall_matcher_found.append(high_recall_matcher_found )
+    return all_high_recall_matcher_found
+
+
 if __name__ == '__main__':
     main()

@@ -368,6 +368,26 @@ def train_semantic_type(community, train_df, test_df, semantic_type):
 
     return best_experiment_data
 
+def predict_with_trained_model_for_df_and_semantic_type(post_df, community, semantic_type):
+    from config import data_dir
+    trained_rf_models_dir = data_dir + r"contextual_relevance\trained_rf_models"
+    selected_feats = ['match_count', 'match_freq', 'pred_3_window', 'pred_6_window', 'pred_10_window', 'relatedness']
+    model_path = os.path.join(trained_rf_models_dir, f'finalized_model_{community}_{semantic_type.lower().replace(" ", "_")}.sav')
+    model_data = pickle.load(open(model_path, 'rb'))
+    model = model_data['model']
+    threshold = model_data['threshold']
+    X_test_matrix = post_df[selected_feats]
+    y_pred = [x[1] for x in model.predict_proba(X_test_matrix)]
+    hard_y_pred = [int(x > threshold) for x in y_pred]
+    return hard_y_pred
+
+
+def contextual_model_predict_with_trained_model_for_df(post_df, community):
+    preds_for_disorders = predict_with_trained_model_for_df_and_semantic_type(post_df, community, DISORDER)
+    preds_for_chemical_and_drugs = predict_with_trained_model_for_df_and_semantic_type(post_df, community, CHEMICAL_OR_DRUG)
+    post_df['disorder_preds'] = preds_for_disorders
+    post_df['chemical_and_drugs_preds'] = preds_for_chemical_and_drugs
+    return post_df
 
 def export_model_data(best_experiment_data, community, model, semantic_type):
     model_path = os.path.join(trained_rf_models_dir,

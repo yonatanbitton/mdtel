@@ -210,6 +210,11 @@ def handle_community(community):
     # print(f"Writing file at shape: {df.shape} to fpath: {fpath}")
     df.to_csv(fpath, index=False, encoding='utf-8-sig')
 
+def init_df(post_df):
+    windows_maker = WindowsMaker()
+    post_df = windows_maker.go(post_df)
+    return post_df
+
 
 if __name__ == '__main__':
     print("Initializing training dataset ...")
