@@ -371,30 +371,32 @@ def train_semantic_type(community, train_df, test_df, semantic_type):
 def predict_with_trained_model_for_df_and_semantic_type(post_df, community, semantic_type):
     from config import data_dir
     trained_rf_models_dir = data_dir + r"contextual_relevance\trained_rf_models"
+    test_semantic_type_df = post_df[post_df['semantic_type'] == semantic_type]
     selected_feats = ['match_count', 'match_freq', 'pred_3_window', 'pred_6_window', 'pred_10_window', 'relatedness']
     model_path = os.path.join(trained_rf_models_dir, f'finalized_model_{community}_{semantic_type.lower().replace(" ", "_")}.sav')
     model_data = pickle.load(open(model_path, 'rb'))
     model = model_data['model']
     threshold = model_data['threshold']
-    X_test_matrix = post_df[selected_feats]
+    X_test_matrix = test_semantic_type_df[selected_feats]
     y_pred = [x[1] for x in model.predict_proba(X_test_matrix)]
     hard_y_pred = [int(x > threshold) for x in y_pred]
-    return hard_y_pred
+
+    test_semantic_type_df['hard_y_pred'] = hard_y_pred
+    test_semantic_type_df = test_semantic_type_df[['cand_match', 'umls_match', 'hard_y_pred']]
+    return test_semantic_type_df
 
 
 def contextual_model_predict_with_trained_model_for_df(post_df, community):
     preds_for_disorders = predict_with_trained_model_for_df_and_semantic_type(post_df, community, DISORDER)
     preds_for_chemical_and_drugs = predict_with_trained_model_for_df_and_semantic_type(post_df, community, CHEMICAL_OR_DRUG)
-    post_df['disorder_preds'] = preds_for_disorders
-    post_df['chemical_and_drugs_preds'] = preds_for_chemical_and_drugs
-    return post_df
+    return preds_for_disorders, preds_for_chemical_and_drugs
 
 def export_model_data(best_experiment_data, community, model, semantic_type):
     model_path = os.path.join(trained_rf_models_dir,
                               f'finalized_model_{community}_{semantic_type.lower().replace(" ", "_")}.sav')
     model_data_to_dump = {'model': model, 'threshold': best_experiment_data['threshold']}
     pickle.dump(model_data_to_dump, open(model_path, 'wb'))
-    print(f"Dumped model to path: {model_path}")
+    print(f"Dumped model to path: {model_path}, best_threshold = {best_experiment_data['threshold']}")
 
 
 def find_best_threshold(X_test, community, y_pred, y_test):
@@ -407,6 +409,7 @@ def find_best_threshold(X_test, community, y_pred, y_test):
         if score > best_joint_score:
             best_joint_score = score
             best_experiment_data = experiment_data
+            print(f'curr best thershold: {best_experiment_data["threshold"]}, best_joint_score : {best_joint_score }')
     X_test['hard_y_pred'] = best_experiment_data['hard_y_pred']
     X_test_seq_data = X_test[
         ['cand_match', 'umls_match', 'hard_y_pred', 'yi', 'file_name', 'match_eng', 'semantic_type',

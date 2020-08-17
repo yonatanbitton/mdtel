@@ -46,6 +46,10 @@ The manual labeled medical terms are at dir `data\manual_labeled_v2\doccano`
 
 We now describe steps to reproduce each one of the steps.  
 
+## Minimal example
+run `src\minimal_example` for a single post for activation all of the components on a single post. 
+
+
 ## Transliteration
 
 The code for this part is here: https://github.com/snukky/news-translit-nmt

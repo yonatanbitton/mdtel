@@ -71,9 +71,12 @@ def main():
     print(set(post_df.columns))
 
     # Contextual relevance model - prediction
-    post_df = contextual_model_predict_with_trained_model_for_df(post_df, DIABETES)
-    print(f"After prediction")
-    print(post_df[['matches_found', 'disorder_preds', 'chemical_and_drugs_preds']])
+    preds_for_disorders, preds_for_chemical_and_drugs = contextual_model_predict_with_trained_model_for_df(post_df, DIABETES)
+    print("After prediction")
+    print('preds_for_disorders')
+    print(preds_for_disorders)
+    print('preds_for_chemical_and_drugs')
+    print(preds_for_chemical_and_drugs)
 
     print("Done")
 
